@@ -1,0 +1,667 @@
+# 安语（Anyu）本地一键启动编排 —— 迭代 10 · W2（七服务 + 既有四服务，共 10 个 service）。
+#
+# 口径来源：设计记录（交付与观测） §4-W2 / §6.1 / S-D10-4；README §6.2 端口表。
+#
+# 三条不变量（由 scripts/check_compose.py 断言，删一条就 exit 1）：
+#   1. 每个 service 都有 healthcheck；
+#   2. backend 的 depends_on 含 postgres 与 redis 且 condition: service_healthy；
+#   3. 端口一律绑 127.0.0.1 —— 只有 frontend(80/443) 与 coturn(3478/5349) 例外。
+#
+# 密钥铁律（AGENTS §4.2）：本文件不写任何口令。一切凭据只以 ${VAR} 形式引用，值来自 .env
+# （`.env` 已在 .gitignore；`cp .env.example .env` 后填值）。本文件**禁止**出现 `password=` 之类的明文。
+#
+# 前置：`cp .env.example .env`。`docker compose` 会自行读取 `.env`；不要把它带进镜像或提交。
+# 注意：本机已有 anyu-postgres / anyu-redis 在跑并占着 5432/6379，
+#       编排校验只跑 `docker compose config`（静态展开），不要 `up/down/ps`。
+
+name: anyu
+
+# ---------------------------------------------------------------------------
+# 统一日志轮转（可观测性 S11）
+#
+# 为什么在编排层做：应用侧坚持写 stdout（12-factor），容器删了日志就跟着没了；但也正因为写
+# stdout，json-file 驱动默认**不轮转**——一个跑几天的演示栈足以把宿主磁盘写满，
+# 写满那天 backend 会以「No space left on device」静默挂掉，比任何业务 bug 都难查。
+#
+# 为什么是 10m × 3：单容器上限 30MB，按演示机日志量（每轮对话数行 JSON）约等于
+# 数天到两周的现场。够排障取当场证据，又不至于让 10 个 service 吃掉几百 MB。
+#
+# 各 service 用 `logging: *default-logging` 引用；改轮转策略只改这一处。
+# 注意：这里只动日志驱动参数，不碰端口/镜像/depends_on/healthcheck 等任何语义。
+# ---------------------------------------------------------------------------
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # ---------------------------------------------------------------------------
+  # 生产基座：数据库 / 缓存
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: anyu-postgres
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-anyu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anyu}
+      POSTGRES_DB: ${POSTGRES_DB:-anyu}
+    ports:
+      # 宿主端口可经环境变量改写（默认 5432，与 README §6.2 一致）；S-D10-4 要求只绑环回，
+      # 数据库不对局域网/公网暴露。本机 5432 被其他项目占用时，在 .env 里改 POSTGRES_HOST_PORT。
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - anyu
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-anyu} -d ${POSTGRES_DB:-anyu}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7
+    container_name: anyu-redis
+    restart: unless-stopped
+    logging: *default-logging
+    # 短期会话 / 限流 / 重复调用检测 / 天气缓存都落这里；开 AOF 让容器重启不丢限流与缓存键。
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - anyu
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # 应用主体：FastAPI 后端 + nginx 前端
+  # ---------------------------------------------------------------------------
+  backend:
+    # 镜像由 W1 的 Dockerfile 构建（builder 装依赖 → runtime 非 root、带 HEALTHCHECK）；
+    # 下面 weather-mcp / mock-operations-mcp 复用同一镜像，只换 entrypoint/command。
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${BACKEND_IMAGE:-anyu-backend:local}
+    container_name: anyu-backend
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      - .env
+    environment:
+      # 容器内一律用**服务名**寻址：.env 里写的是 localhost（宿主机跑用），这里覆盖掉。
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-anyu}:${POSTGRES_PASSWORD:-anyu}@postgres:5432/${POSTGRES_DB:-anyu}
+      LANGGRAPH_CHECKPOINT_DATABASE_URL: postgresql://${POSTGRES_USER:-anyu}:${POSTGRES_PASSWORD:-anyu}@postgres:5432/${POSTGRES_DB:-anyu}
+      REDIS_URL: redis://redis:6379/0
+      # 调度开关：与 worker/beat 读同一个值（shell 或 .env 都能给，默认 false）。
+      # true 时 backend 会把 6 条离线批处理从 APScheduler 摘掉、交给 celery beat。
+      CELERY_ENABLED: "${CELERY_ENABLED:-false}"
+      MCP_WEATHER_SERVER_URL: http://weather-mcp:7101/mcp
+      MCP_OPERATIONS_SERVER_URL: http://mock-operations-mcp:7102
+      LAYA_BASE_URL: http://laya:7001
+      # 演示档放宽：N30/N31 实测 CPU 纯软推理「仅 intent」p50 366ms / p95 822ms，
+      # 四问一次 p50 851ms / p95 1043ms —— 代码默认的 200ms 是 PRD §5.3 的**目标口径**，
+      # 这里**不改默认值**，只在演示机把它放到 1500ms，换取 L1 链路能取到真实数据。
+      # 为什么是 1500 而不是 800/1200：N32 实测 backend→壳 四问一次 p50 663ms / max 801.7ms，
+      # 12 连打里 2 次正好压在 800ms 线上直接 LayaTimeout；1200 只留 400ms 余量，
+      # 一次 GC 毛刺（实测到过 2302ms 的四问样本）又会间歇降级。1500 留 ~700ms 余量，
+      # 且 L1 仍只在「未超时」的轮次生效——不是「卡着超时再降级」冒充跑通。
+      # 真机验收仍按 200ms 量；生产要么上 GPU、要么换更小的分类头、要么按实测重定 §6 延迟表。
+      # Laya 实测：冷启 1.2~1.5s、热态 ~0.6s（CPU 推理）。1500ms 卡在冷启边缘，每次重启后
+      # 前几轮必超时并整单降级到 L2；3000ms 留出冷启余量（依 AGENTS §7 实施口径）。
+      LAYA_TIMEOUT_MS: "3000"
+      VOICEPRINT_BASE_URL: http://voiceprint:7003
+      # ASR 有两处坑：①容器内 127.0.0.1 指的是后端自己，必须用服务名 funasr；
+      # ②镜像里的 funasr-wss-server-2pass **默认就开 TLS**（自带自签证书，2026-11-10 实测
+      # 10095 上是 TLSv1.3），所以必须是 wss 而不是 ws。
+      # .env 里的 wss://127.0.0.1:7002 只对「宿主机跑后端 + 宿主端口映射」成立。
+      ASR_BASE_URL: wss://funasr:10095
+      # 自签证书不做校验（与 app/audio/asr.py 的 ASR_INSECURE 语义一致，只对 wss 生效）。
+      ASR_INSECURE: "true"
+      # TTS_PROVIDER 空值会归一到 mock（静音 PCM，A3/A5 不报错但长者什么也听不到）。
+      # 演示要真播报就用 Edge TTS；它不需要 key，但容器需要有出网与 edge-tts 依赖（已在 pyproject）。
+      TTS_PROVIDER: edge
+      # 宿主机 TTS 桥（scripts/tts_bridge.py）。**为什么需要**：2026-11-11 实测本机容器
+      # 出网 TLS 被掐（TCP 通、握手 EOF，连 www.google.com 也同样失败），而宿主机直连正常
+      # → edge-tts 在容器里 100% TTSUnavailable，只能退 espeak 机器人声。桥跑在宿主机上，
+      # 容器经 host.docker.internal 取到 edge 真音色；桥没起时落回 edge 直连，
+      # ALLOW_ROBOT_VOICE=false 时再失败只上字幕，不再落 espeak（P4）。
+      # 默认**留空**：桥是可选增强，不能假设每台机器都在 7811 上起了桥——
+      # 否则每轮 TTS 都要先吃一次连接失败再回退 edge。要用桥时显式
+      # `TTS_BRIDGE_URL=http://host.docker.internal:7811 docker compose up`。
+      TTS_BRIDGE_URL: ${TTS_BRIDGE_URL:-}
+      # P4：默认禁止 espeak 机器人声进用户可播路径（桥/edge 全失败时只上字幕）。
+      # 断网调试需要「有声音」时显式设 true，且要在验收记录里登记为降级演示。
+      ALLOW_ROBOT_VOICE: ${ALLOW_ROBOT_VOICE:-false}
+      # 固定话术音频包：与 ./static 挂载同一目录，manifest 命中时零网络。
+      VOICE_PACK_ENABLED: ${VOICE_PACK_ENABLED:-true}
+      VOICE_PACK_DIR: ${VOICE_PACK_DIR:-static/voices}
+      # 演示机的实测耗时远超代码默认的三档「首包预算」，不调会让每一轮都走降级：
+      # 2026-11-10 在 backend 容器内实测（.tmp/latency_probe.py）——
+      #   LLM（opencode 网关，非流式）整条回复 2821ms / 3905ms，默认 llm_first_token_timeout_ms=3000；
+      #   Edge TTS 首句 PCM 1742ms / 1968ms，默认 tts_first_packet_timeout_ms=1000。
+      # 2026-11-16 假麦实测 funasr：一次首包 2052ms、一次 4605ms，默认 asr_first_packet_timeout_ms=2000
+      # 会把「差 50ms」和「4.6s」两轮都判成 asr_unavailable，自由对话因此没有文本进 LLM。
+      # 注意：提到 6000 后 B1 仍在 6046ms 内没有任何 ASR 事件（不是差一点，是没出声），
+      # 说明预算只解决「4.6s 被误判」，不能替代 ASR 侧排查；留 6000 只为不误杀慢首包。
+      # B2 同轮 UI 松手 12.5s 才出 partial，final 到 25.29s、随后反复 ASRProtocolError，20s 内无回复。
+      # 预算只决定「多快放弃」，不产生 ASR 事件；6000 下每轮最多空等 6 秒再降级。
+      # 这里只放宽**演示机**的门限，代码默认值与 PRD/TD 的生产预算（唤醒/ASR 首包、首 token ≤800ms、
+      # TTS 首包 ≤300ms）都不动；真机验收仍按 PRD 口径量。
+      ASR_FIRST_PACKET_TIMEOUT_MS: "6000"
+      LLM_FIRST_TOKEN_TIMEOUT_MS: "8000"
+      TTS_FIRST_PACKET_TIMEOUT_MS: "6000"
+      API_HOST: 0.0.0.0
+      API_PORT: "8000"
+      PYTHONUNBUFFERED: "1"
+      # 本机演示：长者端「填入演示账号」按钮读的两项（app/api/pad.py::/api/pad/demo-login）。
+      # 默认值就是 scripts/seed_demo.py 种进去的那台平板；想关掉就显式设成空串。
+      # app_env=production 时该端点一律 404，与这两项是否配置无关。
+      DEMO_DEVICE_ID: ${DEMO_DEVICE_ID:-11111111-1111-4111-8111-111111111106}
+      DEMO_DEVICE_SECRET: ${DEMO_DEVICE_SECRET:-demo-device-secret-0001}
+    volumes:
+      # 与 frontend 的 /srv/static 指向同一个宿主目录：后端写 static/mock/*.wav，
+      # nginx 直出 /static/*（audio.py 用 os.getcwd()/static/mock，镜像 WORKDIR=/app）。
+      - ./static:/app/static
+      # 运行期落盘数据（日报语音条在 data/report_audio/<elder_id>/<date>.wav）。
+      # **为什么必须挂**：`app/services/report_service.py` 的 REPORT_AUDIO_ROOT 是按
+      # `Path(__file__).resolve().parents[2] / "data" / "report_audio"` 算的，容器里
+      # 解析成 `/app/data/report_audio`。不挂这个卷时，宿主机生成的 wav 都在，
+      # 容器内的接口却 404（2026-11-11 实测：家属端 4 天日报全部「语音加载失败」）。
+      # 口径上没有改 REPORT_AUDIO_ROOT 的算法 —— 那会让「宿主机直跑」和「容器跑」
+      # 两套路径分叉，正是这类 bug 的成因。
+      - ./data:/app/data
+    ports:
+      - "127.0.0.1:${BACKEND_HOST_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # MCP server 只等「已启动」不等 healthy：工具层失败必须能降级（四分类里的 transient），
+      # 不该把主链路一起拖死在启动阶段。
+      weather-mcp:
+        condition: service_started
+      mock-operations-mcp:
+        condition: service_started
+    networks:
+      - anyu
+    healthcheck:
+      # 镜像里必然有 python（runtime 基于 python-slim + .venv），不赌 curl 是否存在。
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/health', timeout=5).read()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+    stop_grace_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Celery：只跑「离线批处理」6 条（日报生成/推送、通知升级、红色事件升级、
+  # 设备离线扫描、音频清理）。用药触达、19:00 采集驱动、20 秒采集超时扫描仍在
+  # backend 进程内的 APScheduler 里跑——它们要复用本进程的 WS/WebRTC 连接与
+  # lifespan 里的驱动对象（采集超时扫描于 v1.6 实测后撤回，见计划）。
+  #
+  # 默认 profile 为 `celery`，即 `docker compose up -d` 不会起这两个服务；
+  # 演示/验收需要 worker 时显式加：`docker compose --profile celery up -d`。
+  # ---------------------------------------------------------------------------
+  celery-worker:
+    image: ${BACKEND_IMAGE:-anyu-backend:local}
+    container_name: anyu-celery-worker
+    restart: unless-stopped
+    logging: *default-logging
+    profiles: ["celery"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-anyu}:${POSTGRES_PASSWORD:-anyu}@postgres:5432/${POSTGRES_DB:-anyu}
+      LANGGRAPH_CHECKPOINT_DATABASE_URL: postgresql://${POSTGRES_USER:-anyu}:${POSTGRES_PASSWORD:-anyu}@postgres:5432/${POSTGRES_DB:-anyu}
+      REDIS_URL: redis://redis:6379/0
+      # broker 走 /1：/0 是业务短期记忆，混用会让 flushdb 之类误删到业务键。
+      # CELERY_ENABLED 必须与 backend 读同一个值（shell 或 .env），否则会出现
+      # 「beat 起了、backend 的 APScheduler 没摘」的双跑。
+      CELERY_ENABLED: "${CELERY_ENABLED:-false}"
+      CELERY_BROKER_URL: redis://redis:6379/1
+      # worker 侧可观测性：服务名必须与 backend 分开，否则两条车道的指标会混成一条。
+      OTEL_SERVICE_NAME: anyu-worker
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./static:/app/static
+      - ./data:/app/data
+    command: ["celery", "-A", "app.tasks.celery_app", "worker", "--pool=solo", "--concurrency=1", "-l", "info"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - anyu
+    healthcheck:
+      # inspect ping 会连 broker；worker 启动慢，给足 start_period。
+      # CMD-SHELL：exec 形式不会展开 $$HOSTNAME，celery 会收到字面量 celery@${HOSTNAME} 而永远 ping 不到自己
+      # （2026-11-13 真机验证发现 FailingStreak 626，容器长期 unhealthy 但业务其实在跑）。
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 60s
+
+  celery-beat:
+    image: ${BACKEND_IMAGE:-anyu-backend:local}
+    container_name: anyu-celery-beat
+    restart: unless-stopped
+    logging: *default-logging
+    profiles: ["celery"]
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      CELERY_ENABLED: "${CELERY_ENABLED:-false}"
+      CELERY_BROKER_URL: redis://redis:6379/1
+      PYTHONUNBUFFERED: "1"
+    # beat 必须单实例：静态 beat_schedule 没有分布式锁，两个 beat 会让每条任务双投。
+    command: ["celery", "-A", "app.tasks.celery_app", "beat", "-l", "info", "--schedule=/tmp/celerybeat-schedule"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - anyu
+    stop_grace_period: 30s
+
+  frontend:
+    # nginx 托管 Vite MPA 三入口（pad/console/family）+ 反代 /api /ws /media。
+    # 配置与证书由 W3 产出：默认取 frontend/nginx.conf，拆成 http/https 两份时用 NGINX_CONF_PATH 指另一份。
+    image: ${NGINX_IMAGE:-nginx:1.27-alpine}
+    container_name: anyu-frontend
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      # 唯一允许对外（局域网平板访问）的两个端口；HTTPS 是 getUserMedia 的硬要求。
+      - "${FRONTEND_HTTP_PORT:-80}:80"
+      - "${FRONTEND_HTTPS_PORT:-443}:443"
+    volumes:
+      # 前端构建产物：先在宿主机 `pnpm --dir frontend build` 产出 frontend/dist。
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      # 默认走 HTTPS 版（PRD 迭代 10 验收要求 `https://localhost` 开箱可用，getUserMedia 也硬要求安全上下文）。
+      # 前置一步：`python scripts/gen_dev_cert.py` 生成 certs/dev.{crt,key}；缺证书容器会启动失败，这是刻意的
+      # ——不许「端口绿了但其实是 HTTP」地假装通过。要临时退回 HTTP：NGINX_CONF_PATH=./frontend/nginx.conf
+      - ${NGINX_CONF_PATH:-./frontend/nginx.https.conf}:/etc/nginx/conf.d/default.conf:ro
+      # 自签证书（W3 的 scripts/gen_dev_cert.py 生成到 certs/，certs/ 不入库）。
+      - ${CERTS_DIR:-./certs}:/etc/nginx/certs:ro
+      # W3 的 nginx.conf 按镜像内路径写死了两个资源根，这里必须接上，否则少两条能力：
+      #   /srv/static ← static/      TTS 产物（app/api/audio.py 返回 /static/mock/*.wav，由 nginx 直出）
+      #   /srv/media  ← media/       戏曲/电影素材（宿主没有该目录时 compose 会建空目录）
+      - ./static:/srv/static:ro
+      - ${MEDIA_DIR:-./media}:/srv/media:ro
+    networks:
+      - anyu
+    healthcheck:
+      # nginx:alpine 只有 busybox wget：先试 HTTPS，再退回 HTTP（W3 若只配了 http 也能过）。
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O /dev/null --no-check-certificate https://127.0.0.1/ || wget -q -O /dev/null http://127.0.0.1/",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # System One（Laya）本地推理
+  # ---------------------------------------------------------------------------
+  laya:
+    # System One 服务壳（deploy/laya/）：一次前向出 intent / sensitive / confidence /
+    # privacy / is_out_of_domain 五信号。权重 2.21GB **不进镜像**，运行时只读挂载。
+    # 挂 profiles: ["laya"] —— 缺省 `docker compose up` 不启动，主栈不被 1GB 常驻内存拖住；
+    # 要 L1 真接线时 `docker compose --profile laya up -d`，不起时后端按
+    # LAYA_FALLBACK_TO_LLM=true 全量走 System Two，属既定降级而非故障。
+    image: ${LAYA_IMAGE:-anyu-laya:local}
+    # 让「一条命令起 Laya」成立：没有镜像时 compose 自己构建（有镜像则直接用）。
+    # 上下文必须是仓库根——Dockerfile 要 COPY app/ 拿七类 intent 的唯一出处。
+    # 依赖源：容器内 files.pythonhosted.org 常年不通（README §7 有实测），
+    # 需要在本机 .env 里给 LAYA_PIP_INDEX_URL 换源后再构建，缺省仍走 PyPI。
+    build:
+      context: .
+      dockerfile: deploy/laya/Dockerfile
+      args:
+        PIP_INDEX_URL: ${LAYA_PIP_INDEX_URL:-}
+    container_name: anyu-laya
+    restart: unless-stopped
+    logging: *default-logging
+    profiles: ["laya"]
+    # 刻意**不挂 env_file: .env**：`.env` 里有 JWT_SECRET / LLM_API_KEY / TURN_CREDENTIAL，
+    # Laya 一个都用不上（服务壳只读 LAYA_* 前缀），没必要把三家密钥抄送进推理容器。
+    # 需要鉴权时只给 LAYA_API_KEY 一条，写在下面 environment 里。
+    environment:
+      LAYA_MODEL_ROOT: /models/laya
+      LAYA_SUBFOLDER: multilingual
+      LAYA_DEVICE: cpu
+      # 4 线程是 N30 在 8 核机上的最优点：再多只跟后端抢核，单句延迟反而抖。
+      LAYA_THREADS: "4"
+      # 非法响应注入必须关：只给 deploy/laya/contract_check.py 用，
+      # 开着会让「__fault:」开头的句子拿到假信号。
+      LAYA_FAULT_INJECT: "0"
+      # 缺省空 = 不鉴权（只监听 127.0.0.1:7001 且走内网 bridge）；
+      # 要开就在 .env 里给 LAYA_API_KEY，后端侧同名变量会自动带上 Bearer。
+      LAYA_API_KEY: ${LAYA_API_KEY:-}
+    volumes:
+      # 长语法是刻意的：短语法要按冒号切分，碰上 Windows 盘符 D:\ 容易被误切；
+      # 换机器/换 CI 只改 LAYA_MODEL_DIR 一个变量（Linux 上指到同一份权重目录）。
+      - type: bind
+        source: ${LAYA_MODEL_DIR:-./laya-model}
+        target: /models/laya
+        read_only: true
+    ports:
+      - "127.0.0.1:${LAYA_HOST_PORT:-7001}:7001"
+    networks:
+      - anyu
+    # 内存闸门：容器内实测 anon 1.44GiB（cgroup memory.stat，无 swap，不换页不缩水），
+    # 卡到 2048m 是给它 ~40% 余量。**这个数不是拍脑袋**：Docker VM 只有 3.728GiB，
+    # 没有 cap 时 Laya 一旦膨胀会和 funasr / backend 一起 OOM，那才是把演示挤死；
+    # 有 cap 至少失败局部化（容器重启，主栈继续走 L2 降级）。
+    # 注：N30 在宿主量到 1.03GB RSS 是**偏低**的——当时宿主 AvailableMB=0、进程被换页，
+    # 容器里没有 swap，1.44GiB 才是真实常驻。
+    mem_limit: 2048m
+    healthcheck:
+      # 探 /health 而不是只探端口：壳在加载期先 listen 后 ready，那时 /health 返回 503，
+      # urlopen 会抛 HTTPError → 非零退出 → 保持 unhealthy，正是我们要的语义。
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request as u; u.urlopen('http://127.0.0.1:7001/health', timeout=4).read()",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      # 加载：SDK 实测 15s，权重包自带加载器 87s；冷容器 + 换页压力按 3 分钟留足。
+      start_period: 180s
+
+  # ---------------------------------------------------------------------------
+  # MCP tools：天气（唯一真实外呼）+ Mock 工单/通知
+  # ---------------------------------------------------------------------------
+  weather-mcp:
+    # 直接跑仓库内 mcp-servers/weather/server.py（streamable-http，工具面 get_weather）。
+    # 复用 backend 镜像拿依赖与解释器，只挂 ro 的源码目录 + 换 entrypoint/command。
+    image: ${BACKEND_IMAGE:-anyu-backend:local}
+    container_name: anyu-weather-mcp
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      - .env
+    environment:
+      # server.py 的 _serve_http() 用 settings.mcp_weather_server_url 决定 bind host:port，
+      # 容器内必须绑 0.0.0.0 才能被 backend 通过服务名访问。
+      MCP_WEATHER_SERVER_URL: http://0.0.0.0:7101/mcp
+      PYTHONPATH: /app
+      PYTHONUNBUFFERED: "1"
+    entrypoint: ["python"]
+    command: ["-m", "mcp-servers.weather.server", "http"]
+    ports:
+      - "127.0.0.1:${WEATHER_MCP_HOST_PORT:-7101}:7101"
+    volumes:
+      - ./mcp-servers:/app/mcp-servers:ro
+    depends_on:
+      # 天气结果落 Redis 缓存（WEATHER_CACHE_TTL_SECONDS），缓存不可用则应先等它起来。
+      redis:
+        condition: service_healthy
+    networks:
+      - anyu
+    healthcheck:
+      # MCP 的 /mcp 是 JSON-RPC（GET 会 4xx），探 TCP 端口最稳，且不依赖 curl。
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import socket; socket.create_connection(('127.0.0.1', 7101), timeout=3).close()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  mock-operations-mcp:
+    # 真 MCP 服务（迭代 8 · N20）：工具面 create_work_order / send_family_notification，
+    # streamable-http 挂在 /mcp，/health 给 compose 探活。
+    # 与 weather-mcp 同款：复用 backend 镜像拿依赖与解释器，只挂 ro 的源码目录 + 换 command。
+    # 工具落库复用 app/services 的唯一实现（见 mcp-servers/mock_operations/README.md §1），
+    # 所以这里必须能连到容器内 postgres —— DATABASE_URL 与 backend 同源覆盖。
+    image: ${BACKEND_IMAGE:-anyu-backend:local}
+    container_name: anyu-mock-operations-mcp
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-anyu}:${POSTGRES_PASSWORD:-anyu}@postgres:5432/${POSTGRES_DB:-anyu}
+      # server.py 的 _serve_http() 用 settings.mcp_operations_server_url 决定 bind host:port，
+      # 容器内必须绑 0.0.0.0 才能被 backend 通过服务名访问。
+      MCP_OPERATIONS_SERVER_URL: http://0.0.0.0:7102/mcp
+      PYTHONPATH: /app
+      PYTHONUNBUFFERED: "1"
+    entrypoint: ["python"]
+    command: ["-m", "mcp-servers.mock_operations.server", "http"]
+    volumes:
+      - ./mcp-servers:/app/mcp-servers:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${MOCK_OPERATIONS_MCP_HOST_PORT:-7102}:7102"
+    networks:
+      - anyu
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request as u; u.urlopen('http://127.0.0.1:7102/health', timeout=3).read()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # TURN / STUN（跨网段才需要，本机同网段可不用）
+  # ---------------------------------------------------------------------------
+  coturn:
+    image: ${COTURN_IMAGE:-coturn/coturn:4.6.3}
+    container_name: anyu-coturn
+    restart: unless-stopped
+    logging: *default-logging
+    # 凭据只从 .env 注入：.env.example 里的 TURN_USERNAME / TURN_CREDENTIAL。
+    # 少了 TURN_CREDENTIAL 时 turnserver 会拒绝启动 —— 这是故意的：宁可起不来也不开匿名中继。
+    #
+    # 为什么这里用 `sh -c` 而不是原来的参数列表（W2）：
+    # 要透传 `--external-ip=<宿主机 IP>`，但 `TURN_EXTERNAL_IP` 允许为空（本机联调不需要）。
+    # compose 的列表形式没法做「变量为空就整条参数不传」，直接写 `--external-ip=${TURN_EXTERNAL_IP}`
+    # 在变量为空时会得到 `--external-ip=`，turnserver 解析失败、**容器起不来**（比不指定更糟）。
+    # 所以改成 entrypoint 走 shell，用 POSIX 的 `${VAR:+...}` 条件展开：有值才追加该参数。
+    # 代价是 `$` 在 compose 里要写成 `$$`（否则会被 compose 自己在宿主侧展开），变量也必须
+    # 经下面 environment: 显式注入容器内。
+    # 对照：另一种写法是「永远传 --external-ip」并在 .env.example 里填一个占位 IP —— 那会让
+    # 本机默认配置下发一个不存在的地址，ICE 反而更慢，故不采用。
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        exec turnserver
+        --no-cli --fingerprint --lt-cred-mech --log-file=stdout
+        --realm="$${TURN_REALM:-anyu}"
+        --user="$${TURN_USERNAME:-anyu}:$${TURN_CREDENTIAL}"
+        --listening-port=3478
+        --tls-listening-port=$${TURN_TLS_PORT:-5349}
+        --cert=/etc/coturn/certs/$${TURN_CERT_FILE:-dev.crt}
+        --pkey=/etc/coturn/certs/$${TURN_KEY_FILE:-dev.key}
+        --no-tlsv1 --no-tlsv1_1
+        --min-port=49160 --max-port=49200
+        $${TURN_EXTERNAL_IP:+--external-ip=$${TURN_EXTERNAL_IP}}
+    volumes:
+      # TURNS/DTLS 与 nginx 共用同一张自签证书（scripts/gen_dev_cert.py 生成）。
+      # 只读挂载：容器不需要写证书。证书不存在时 turnserver 会直接退出 —— 刻意的，
+      # 与 nginx 缺 certs 起不来同一口径：宁可红，也不静默降级成明文 TURN。
+      - ./certs:/etc/coturn/certs:ro
+    environment:
+      # 供上面 shell 脚本在容器内展开（compose 不把 .env 自动塞进容器）。
+      TURN_REALM: ${TURN_REALM:-anyu}
+      TURN_USERNAME: ${TURN_USERNAME:-anyu}
+      TURN_CREDENTIAL: ${TURN_CREDENTIAL:-}
+      # 空 = 不指定 external-ip（本机同网段可用）；非空 = 宿主机局域网 IP / 公网 IP。
+      TURN_EXTERNAL_IP: ${TURN_EXTERNAL_IP:-}
+      TURN_TLS_PORT: ${TURN_TLS_PORT:-5349}
+      TURN_CERT_FILE: ${TURN_CERT_FILE:-dev.crt}
+      TURN_KEY_FILE: ${TURN_KEY_FILE:-dev.key}
+    ports:
+      # 3478 属 S-D10-4 豁免（TURN 必须接受外部/局域网直连，绑环回就没意义了）。
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+      # 5349 = TURNS(TLS over TCP) + DTLS over UDP。证书来自挂载的 ./certs。
+      # 浏览器对 turns: 不做「点继续访问」那一套：证书不在受信根里就连不上，
+      # 所以前端下发的是 turn:+turns: 两条，TLS 失败会自动回落到 3478 明文 TURN。
+      - "5349:5349/tcp"
+      - "5349:5349/udp"
+      #
+      # 中继端口段（49160-49200/udp，与上面 --min-port/--max-port 严格对齐）：W2 起**默认发布**。
+      # 不发布这一段，TURN 分配到的 relay 端口在宿主机上根本没有映射，浏览器拿到候选地址后
+      # 包发不过来 —— 表现为 ICE 卡在 checking 直到超时，比没有 TURN 更难查。
+      - "49160-49200:49160-49200/udp"
+    networks:
+      - anyu
+    healthcheck:
+      # 该镜像没有 curl / wget / nc / pgrep（busybox 极简），但自带 turnutils_*：
+      # 用 STUN 绑定请求真探活——比「看进程在不在」更强，服务不响应 STUN 时这里就红。
+      test: ["CMD-SHELL", "turnutils_stunclient -p 3478 127.0.0.1 > /dev/null 2>&1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # 既有本地推理服务（迭代 3/4 遗产，保留不动：端口改绑环回以符合 S-D10-4）
+  # ---------------------------------------------------------------------------
+  funasr:
+    # 本地 ASR 基线（FunASR runtime，2pass 双通路流式）。宿主端口 7002 —— 7001 已登记给 laya
+    # （见 设计记录（ASR与TTS适配层） §4.4 与 §9-1），不要再抢。
+    # 镜像内 FunASR runtime 默认监听 10095。**注意：它默认就开 TLS**（自带自签证书；
+    # 2026-11-10 实测启动日志有 `SSL is opened!`、端口上握手得到 TLSv1.3），客户端必须用
+    # wss:// 并跳过证书校验（ASR_INSECURE=true）。这里原先写着「不开 TLS、用 ws://」是错的，
+    # 照着写会连不上，已按实测改正。
+    image: registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-online-cpu-0.1.12
+    container_name: anyu-funasr
+    init: true
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      # 宿主端口可经环境变量改写（默认 7002，与 README §6.2 端口约定一致）。
+      - "127.0.0.1:${FUNASR_HOST_PORT:-7002}:10095"
+    volumes:
+      # 首次启动按 --download-model-dir 下载到具名卷，之后复用；模型不进镜像层、也不落仓库目录。
+      - funasr_models:/workspace/models
+    working_dir: /workspace/FunASR/runtime/websocket/build/bin
+    networks:
+      - anyu
+    # 镜像内 run_server_2pass.sh 会把识别程序丢到后台并退出；这里直接前台起同一个可执行文件，
+    # 让 Docker 能跟踪退出状态、restart 与日志（与参考 compose 同一做法）。
+    entrypoint: ["/workspace/FunASR/runtime/websocket/build/bin/funasr-wss-server-2pass"]
+    command:
+      - --download-model-dir
+      - /workspace/models
+      - --vad-dir
+      - damo/speech_fsmn_vad_zh-cn-16k-common-onnx
+      - --model-dir
+      - damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-onnx
+      - --online-model-dir
+      - damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online-onnx
+      - --punc-dir
+      - damo/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727-onnx
+      - --lm-dir
+      - damo/speech_ngram_lm_zh-cn-ai-wesp-fst
+      - --itn-dir
+      - thuduj12/fst_itn_zh
+      - --port
+      - "10095"
+      - --decoder-thread-num
+      - "4"
+      - --model-thread-num
+      - "1"
+      - --io-thread-num
+      - "1"
+    healthcheck:
+      # 纯 TCP 探活：本服务不开 TLS，所以不做 TLS 握手（参考 compose 那版是为了 wss 才握手的）。
+      # start_period 必须覆盖**首次**下模型 + 加载的总时长：卷为空时实测约 1.4 MB/s、模型合计
+      # 数 GB，20 分钟起步。原先给 180s 是错的——下模型期间端口未开，探活必然失败，一旦越过
+      # start_period 就立刻翻 unhealthy，`docker compose up --wait` 会当场判失败（2026-11-10 实测）。
+      # 模型已在具名卷里之后，重启只需加载，几十秒即 healthy；start_period 只对「第一次」生效，
+      # 所以给宽不拖慢日常启动。健康检查失败不会自动重启容器。
+      test: ["CMD", "python3", "-c", "import socket; socket.create_connection(('127.0.0.1', 10095), timeout=5).close()"]
+      start_period: 1800s
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    # 限核：ASR 推理是 CPU 密集，别让它把 postgres/redis 和本地开发抢死（deploy 段在非 swarm
+    # 的 docker compose v2 下同样生效）。
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+    stop_grace_period: 30s
+
+  voiceprint:
+    # 声纹推理容器（迭代 4 A1）。只做 POST /extract + GET /health。
+    # 比对在主服务进程内 numpy 完成，容器不装 torch（重依赖隔离）。
+    # 宿主端口 7003（compose 网络内主服务用 voiceprint:7003）。
+    build:
+      context: ./deploy/voiceprint
+      dockerfile: Dockerfile
+    container_name: anyu-voiceprint
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "127.0.0.1:${VOICEPRINT_HOST_PORT:-7003}:7003"
+    volumes:
+      # 模型文件（CAM++ .onnx）手动放 deploy/voiceprint/models/ 后 compose 自动挂载
+      - ./deploy/voiceprint/models:/app/models:ro
+    networks:
+      - anyu
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7003/health', timeout=5).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+
+networks:
+  # 自定义 bridge：服务间用服务名互访，隔离 default 网络上的其它工程。
+  anyu:
+    name: anyu-net
+    driver: bridge
+
+volumes:
+  postgres_data:
+  funasr_models:
+  # Redis AOF（短期会话/限流/天气缓存），容器重启不丢键。
+  redis_data:

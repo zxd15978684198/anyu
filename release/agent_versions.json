@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "service": {
+    "name": "anyu",
+    "version": "0.1.0"
+  },
+  "runtime": {
+    "python": "3.12",
+    "uv": "unknown",
+    "lockfile": "uv.lock"
+  },
+  "agent": {
+    "evaluation": {
+      "version": "evaluation-1.0.0",
+      "path": "eval/fixtures/injection.jsonl",
+      "sha256": "61ea7593a17b32532cc669974da8b7405334862e9acf9b1659ada029fe50761c"
+    }
+  }
+}

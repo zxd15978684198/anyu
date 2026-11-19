@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>3D 自检 · 安语</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #1f2430;
+        --muted: #5b6472;
+        --ok: #1f8a4c;
+        --bad: #c0392b;
+        --line: #e3e7ee;
+        --soft: #f5f7fb;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 48px 24px;
+        font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+        color: var(--ink);
+        background: #fff;
+        line-height: 1.7;
+      }
+      main {
+        max-width: 880px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 28px;
+        margin: 0 0 8px;
+      }
+      .sub {
+        color: var(--muted);
+        margin: 0 0 28px;
+      }
+      .verdict {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 24px 28px;
+        border-radius: 20px;
+        border: 1px solid var(--line);
+        background: var(--soft);
+        margin-bottom: 24px;
+      }
+      .verdict .dot {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        flex: none;
+      }
+      .verdict.ok .dot {
+        background: var(--ok);
+      }
+      .verdict.bad .dot {
+        background: var(--bad);
+      }
+      .verdict strong {
+        font-size: 26px;
+        display: block;
+      }
+      .verdict span {
+        color: var(--muted);
+        font-size: 17px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 17px;
+        margin: 0 0 24px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 12px 10px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        width: 190px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      code {
+        font-family: Consolas, "Courier New", monospace;
+        background: var(--soft);
+        padding: 2px 6px;
+        border-radius: 6px;
+        word-break: break-all;
+      }
+      ol {
+        padding-left: 22px;
+      }
+      li {
+        margin: 10px 0;
+      }
+      .actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 28px;
+      }
+      a.btn {
+        display: inline-block;
+        padding: 12px 22px;
+        border-radius: 999px;
+        text-decoration: none;
+        font-size: 17px;
+        border: 1px solid var(--line);
+        color: var(--ink);
+      }
+      a.btn.primary {
+        background: #2f6fed;
+        border-color: #2f6fed;
+        color: #fff;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>3D 自检</h1>
+      <p class="sub">
+        这个页只做一件事：告诉你的浏览器能不能跑 3D 数字人。看完可以直接关掉，不影响任何数据。
+      </p>
+
+      <div id="verdict" class="verdict">
+        <span class="dot"></span>
+        <div>
+          <strong id="verdict-title">正在检测…</strong>
+          <span id="verdict-desc">马上就好</span>
+        </div>
+      </div>
+
+      <table>
+        <tr>
+          <th>WebGL 2（推荐）</th>
+          <td id="ogl2">检测中…</td>
+        </tr>
+        <tr>
+          <th>WebGL 1（兼容）</th>
+          <td id="ogl1">检测中…</td>
+        </tr>
+        <tr>
+          <th>显卡 / 渲染器</th>
+          <td id="orenderer">—</td>
+        </tr>
+        <tr>
+          <th>浏览器</th>
+          <td id="oua">—</td>
+        </tr>
+      </table>
+
+      <div id="fix" class="hidden">
+        <h2 style="font-size: 22px; margin: 0 0 8px">浏览器没给 3D，按顺序试这三步</h2>
+        <ol>
+          <li>
+            先看诊断页：地址栏输入 <code>chrome://gpu</code>，找 <b>WebGL</b> 与 <b>WebGL2</b> 两行。
+            <br />显示 <code>Hardware accelerated</code> 说明硬件加速在，不必做第 2 步。
+          </li>
+          <li>
+            打开硬件加速：<b>设置 → 系统 → 使用硬件加速（如可用）</b>，然后<b>完全退出浏览器再打开</b>。
+          </li>
+          <li>
+            远程桌面 / 虚拟机常见最后手段：地址栏输入
+            <code>chrome://flags/#enable-unsafe-swiftshader</code>，把该项改成
+            <b>Enabled</b>，重启浏览器。这会允许用 CPU 软件渲染 3D——帧率低，但人物会动。
+          </li>
+        </ol>
+      </div>
+
+      <div class="actions">
+        <a class="btn primary" href="/">进入小伴页面</a>
+        <a class="btn" href="chrome://gpu">打开 chrome://gpu</a>
+        <a class="btn" href="chrome://flags/#enable-unsafe-swiftshader">打开 Swiftshader 开关</a>
+        <a class="btn" href="javascript:location.reload()">重新检测</a>
+      </div>
+    </main>
+
+    <script>
+      (function () {
+        var attrs = {
+          alpha: true,
+          antialias: false,
+          depth: false,
+          stencil: false,
+          failIfMajorPerformanceCaveat: false,
+          powerPreference: "default",
+        };
+
+        function grab(name) {
+          var canvas = document.createElement("canvas");
+          try {
+            var gl = canvas.getContext(name, attrs);
+            if (!gl) return null;
+            var renderer = "unknown";
+            try {
+              var info = gl.getExtension("WEBGL_debug_renderer_info");
+              renderer = info
+                ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL))
+                : String(gl.getParameter(gl.RENDERER));
+            } catch (e) {
+              /* 读不到就当 unknown */
+            }
+            try {
+              var lose = gl.getExtension("WEBGL_lose_context");
+              if (lose) lose.loseContext();
+            } catch (e) {
+              /* 释放失败无妨 */
+            }
+            return { ok: true, renderer: renderer };
+          } catch (error) {
+            return { ok: false, error: String(error && error.message ? error.message : error) };
+          }
+        }
+
+        var gl2 = grab("webgl2");
+        var gl1 = grab("webgl");
+        var best = gl2 && gl2.ok ? gl2 : gl1 && gl1.ok ? gl1 : null;
+
+        document.getElementById("ogl2").innerHTML = gl2 && gl2.ok ? "✅ 可用" : "❌ 不可用";
+        document.getElementById("ogl1").innerHTML = gl1 && gl1.ok ? "✅ 可用" : "❌ 不可用";
+        document.getElementById("orenderer").textContent =
+          (best && best.renderer) || "—（拿不到上下文，读不出显卡）";
+        document.getElementById("oua").textContent = navigator.userAgent;
+
+        var box = document.getElementById("verdict");
+        var title = document.getElementById("verdict-title");
+        var desc = document.getElementById("verdict-desc");
+        var fix = document.getElementById("fix");
+
+        if (best) {
+          box.className = "verdict ok";
+          title.textContent = "这台浏览器可以跑 3D ✅";
+          desc.textContent =
+            gl2 && gl2.ok
+              ? "WebGL 2 可用——回到小伴页面就是会动的 3D 数字人"
+              : "WebGL 1 可用——画面能出，效果略降级";
+        } else {
+          box.className = "verdict bad";
+          title.textContent = "这台浏览器现在跑不了 3D ❌";
+          desc.textContent = "浏览器拒绝创建 WebGL 画布，所以 3D 舞台不会出现；按下面三步之一打开即可";
+          fix.className = "";
+        }
+        void attrs;
+      })();
+    </script>
+  </body>
+</html>

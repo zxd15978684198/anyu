@@ -1,0 +1,380 @@
+/**
+ * 三端共享 UI 原语样式（前端计划 W2/W3）。
+ *
+ * 收敛前：console/family 的 CSS 有 323 行逐字相同（24 个同名类），
+ * 且两端都没有 `:focus-visible`、没有自绘滚动条、没有 `prefers-reduced-motion`、
+ * 没有骨架屏（console 加载只有 spinner）。这里把这些做成一套原语，三端共用。
+ *
+ * 色板纪律：**只引用 tokens.css 的既有 token，不新造色相**（2026-11-05 冻结口径：
+ * 全端浅底、无深色块、无深色模式、主色只承担交互不铺面、信号色不做按钮底不铺面）。
+ * 透明度一律 `color-mix(in srgb, var(--token) N%, transparent)`，不写 rgb() 字面量。
+ *
+ * 引入方式：各端 index.css 在 tokens 之后 `@import "../shared/ui/primitives.css";`
+ * pad 的 `--pad-*` 版面令牌与八档断点**不受影响**（已被 pad-tiers 测试钉死）。
+ */
+
+/* ------------------------------------------------------------------ 令牌增补
+   只增「字阶 / 间距 / 焦点 / 滚动条 / 动效」，不改任何既有语义色。 */
+:root {
+  --ui-ring: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-brand);
+  --ui-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ui-shadow-1: 0 1px 2px color-mix(in srgb, var(--color-ink) 4%, transparent),
+    0 4px 14px color-mix(in srgb, var(--color-brand) 6%, transparent);
+  --ui-shadow-2: 0 2px 6px color-mix(in srgb, var(--color-ink) 5%, transparent),
+    0 14px 40px color-mix(in srgb, var(--color-brand) 10%, transparent);
+
+  --ui-s1: 4px;
+  --ui-s2: 8px;
+  --ui-s3: 12px;
+  --ui-s4: 16px;
+  --ui-s5: 24px;
+  --ui-s6: 32px;
+  --ui-s7: 48px;
+
+  --ui-scrollbar-size: 11px;
+}
+
+/* ------------------------------------------------------------------ 焦点可见
+   收敛前：console/family `:focus-visible` 命中 0，`.input{outline:none}` 只换边框色，
+   键盘用户几乎看不到焦点在哪。pad 也只有 4 处且全在输入框。 */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ui-ring);
+  border-radius: 8px;
+}
+
+/* 输入类元素已有边框，焦点环贴紧一些，避免双层圈 */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-radius: 10px;
+}
+
+/* 可点表格行：补键盘可达性所需的焦点态（组件侧还要加 tabIndex/onKeyDown） */
+tr[tabindex]:focus-visible,
+[role="button"][tabindex]:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--color-brand);
+  border-radius: 0;
+}
+
+/* ------------------------------------------------------------------ 滚动条
+   收敛前：三端基本都是浏览器默认（实测 family innerWidth − clientWidth = 15px）。
+   宽度 / track / thumb / hover 全部取自本端色板。 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-brand-line) var(--color-surface-sunken);
+}
+*::-webkit-scrollbar {
+  width: var(--ui-scrollbar-size);
+  height: var(--ui-scrollbar-size);
+}
+*::-webkit-scrollbar-track {
+  background: var(--color-surface-sunken);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-brand-line);
+  border-radius: 999px;
+  border: 2px solid var(--color-surface-sunken);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}
+*::-webkit-scrollbar-corner {
+  background: var(--color-surface-sunken);
+}
+
+/* ------------------------------------------------------------------ 骨架屏
+   收敛前 console 骨架屏 0 命中，加载只有 spinner；family 详情页趋势区用裸 <p>。 */
+.ui-skeleton {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-sunken) 0%,
+    color-mix(in srgb, var(--color-brand-soft) 70%, var(--color-surface-sunken)) 50%,
+    var(--color-surface-sunken) 100%
+  );
+  background-size: 220% 100%;
+  animation: ui-shimmer 1.5s var(--ui-ease) infinite;
+}
+.ui-skeleton-row {
+  height: 16px;
+  margin-bottom: var(--ui-s3);
+}
+.ui-skeleton-row:last-child {
+  margin-bottom: 0;
+}
+.ui-skeleton-title {
+  height: 24px;
+  width: 42%;
+  margin-bottom: var(--ui-s4);
+}
+.ui-skeleton-card {
+  height: 96px;
+  border-radius: var(--radius-card);
+}
+.ui-skeleton-chart {
+  height: 180px;
+  border-radius: var(--radius-card);
+}
+.ui-skeleton-group {
+  display: grid;
+  gap: var(--ui-s3);
+}
+
+@keyframes ui-shimmer {
+  from { background-position: 180% 0; }
+  to { background-position: -80% 0; }
+}
+
+/* ------------------------------------------------------------------ Toast
+   收敛前 console 无 toast 原语，成功反馈各页自写 note-banner 11 处
+   （MedicationsPage 一页 17 处）。这里给一套四语义原语。 */
+.ui-toast-region {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: grid;
+  gap: var(--ui-s2);
+  pointer-events: none;
+  width: min(92vw, 460px);
+}
+.ui-toast {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-s3);
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-left: 4px solid var(--color-brand);
+  box-shadow: var(--ui-shadow-2);
+  font-size: 0.9375rem;
+  color: var(--color-ink);
+  pointer-events: auto;
+  animation: ui-toast-in 0.26s var(--ui-ease);
+}
+.ui-toast[data-tone="success"] { border-left-color: var(--color-success-ink); }
+.ui-toast[data-tone="warning"] { border-left-color: var(--color-warning-ink); }
+.ui-toast[data-tone="danger"] { border-left-color: var(--color-danger-ink); }
+.ui-toast[data-tone="info"] { border-left-color: var(--color-info-ink); }
+.ui-toast-text { flex: 1 1 auto; line-height: 1.5; }
+.ui-toast-close {
+  flex: 0 0 auto;
+  min-width: 32px;
+  min-height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-ink-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.ui-toast-close:hover { background: var(--color-surface-sunken); color: var(--color-ink); }
+
+@keyframes ui-toast-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ------------------------------------------------------------------ 按钮原语
+   与两端既有 .btn-primary / .p-btn 并存，新代码优先用这套；不强制迁移既有类名。 */
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ui-s2);
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.18s var(--ui-ease), border-color 0.18s var(--ui-ease),
+    color 0.18s var(--ui-ease), transform 0.18s var(--ui-ease);
+}
+.ui-btn-primary { background: var(--color-brand); color: var(--color-ink-inverse); }
+.ui-btn-primary:hover { background: var(--color-brand-strong); transform: translateY(-1px); }
+.ui-btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-brand-strong);
+  border-color: var(--color-brand-line);
+}
+.ui-btn-secondary:hover { background: var(--color-brand-soft); }
+.ui-btn-ghost {
+  background: transparent;
+  color: var(--color-ink-muted);
+  border-color: var(--color-line);
+}
+.ui-btn-ghost:hover { background: var(--color-surface-sunken); color: var(--color-ink); }
+.ui-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+/* ------------------------------------------------------------------ 错误边界 */
+.ui-error-boundary {
+  display: grid;
+  justify-items: start;
+  gap: var(--ui-s3);
+  padding: var(--ui-s6);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  border: 1px solid var(--color-danger-ink);
+  border-left: 4px solid var(--color-danger-ink);
+  box-shadow: var(--ui-shadow-1);
+}
+.ui-error-boundary-mark {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-ink);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+.ui-error-boundary-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.ui-error-boundary-text {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--color-ink-muted);
+  line-height: 1.6;
+}
+.ui-error-boundary-detail {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-surface-sunken);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  color: var(--color-ink-muted);
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.ui-error-boundary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ui-s3);
+  margin-top: var(--ui-s2);
+}
+
+/* ------------------------------------------------------------------ 常驻内联提示
+   收敛各页手写的 `<p className="note-banner">`。**刻意不是 Toast**：
+   权限说明与机构口径必须常驻，自动消失会让护工看不到（见 Notice.tsx 注释）。
+   默认 warning 沿用原 .note-banner 的琥珀色，另给 info/neutral 供口径说明用。 */
+.ui-notice {
+  margin: 0 0 var(--ui-s4);
+  padding: 10px 14px;
+  border-radius: 10px;
+  border-left: 3px solid var(--color-warning-ink);
+  background: var(--color-warning-soft);
+  color: var(--color-warning-ink);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+.ui-notice[data-tone="info"] {
+  border-left-color: var(--color-info-ink);
+  background: var(--color-info-soft);
+  color: var(--color-info-ink);
+}
+.ui-notice[data-tone="success"] {
+  border-left-color: var(--color-success-ink);
+  background: var(--color-success-soft);
+  color: var(--color-success-ink);
+}
+.ui-notice[data-tone="danger"] {
+  border-left-color: var(--color-danger-ink);
+  background: var(--color-danger-soft);
+  color: var(--color-danger-ink);
+}
+.ui-notice[data-tone="neutral"] {
+  border-left-color: var(--color-neutral-ink);
+  background: var(--color-neutral-soft);
+  color: var(--color-neutral-ink);
+}
+.ui-notice strong { color: inherit; font-weight: 700; }
+
+/* ------------------------------------------------------------------ 趋势图
+   两端原本各有一套 .trend-* / .chart-* 类名，收敛成一套 .ui-chart-*。
+   轴标签字号由组件按 viewBox 与实际渲染宽的比例传入（fontSize 属性），
+   不在这里写死，避免「viewBox 里 16px、渲染出来 14.7px」破 ≥16px 口径。 */
+.ui-chart {
+  display: grid;
+  gap: var(--ui-s3);
+}
+.ui-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ui-s4);
+}
+.ui-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ui-s2);
+  font-size: 0.8125rem;
+  color: var(--color-ink-muted);
+}
+.ui-chart-swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+.ui-chart-legend-note {
+  font-size: 0.75rem;
+  color: var(--color-ink-muted);
+}
+.ui-chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.ui-chart-empty {
+  display: grid;
+  gap: var(--ui-s2);
+  padding: var(--ui-s5);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-sunken);
+  border: 1px dashed var(--color-line);
+}
+.ui-chart-empty-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--color-ink);
+}
+.ui-chart-empty-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-ink-muted);
+  line-height: 1.6;
+}
+
+/* ------------------------------------------------------------------ 动效偏好
+   收敛前 family/console 命中 0，而 .spinner 与 .skeleton-bar 是无限动画。
+   这里统一兜住三端所有动画，含既有端的 spinner。 */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .ui-skeleton { animation: none; background: var(--color-surface-sunken); }
+}

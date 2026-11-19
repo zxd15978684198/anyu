@@ -1,0 +1,26 @@
+# N31 Laya 服务壳运行时依赖（镜像内安装；项目 .venv 一律不装 torch，见 AGENTS §4-12）
+#
+# CPU 轮子必须走官方 cpu 索引：PyPI 默认的 torch 是 CUDA 版（约 2.5GB），
+# 而这台 Docker VM 只有 3.728GiB 内存、无 GPU，装 CUDA 版纯属烧盘。
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# +cpu 是本地版本号，只有上面那个索引有；写 torch==2.15.0 会解析到 PyPI 的 CUDA 版。
+torch==2.15.0+cpu
+
+# transformers 必须 5.x：multilingual/encoder/config.json 里是 ropes 新键
+# (`rope_parameters.rope_theta=160000`)，4.x 不认该键会**静默**退回 10000——
+# 不报错，但位置编码算错，分类结果不可信。
+transformers==5.22.2
+
+# 加载器：laya.load(本地目录) 实测 15052ms，比权重包自带的 rl_agent_api 快 5.8×，
+# 且 20 条判定逐条一致（见 README 对照表）。
+laya==0.4.30
+
+fastapi==0.162.2
+uvicorn[standard]==0.54.0
+
+# 下面两个不是服务端直接用的：server.py 为了拿七类常量 import 了
+# app/system_one/questions.py，它会连带 import client.py（httpx）
+# 与 app/core/config.py（pydantic-settings）。缺了就 ImportError。
+httpx==0.28.1
+pydantic-settings==2.16.2

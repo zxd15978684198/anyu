@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>KWS 自检 · 小伴唤醒词</title>
+    <style>
+      body { font: 15px/1.6 -apple-system, "Microsoft YaHei", sans-serif; margin: 24px; max-width: 880px; }
+      h1 { font-size: 20px; }
+      code, pre { background: #f2f2f2; padding: 2px 6px; border-radius: 4px; }
+      pre { padding: 12px; overflow: auto; max-height: 320px; }
+      .ok { color: #18794e; font-weight: 700; }
+      .bad { color: #b3261e; font-weight: 700; }
+      button { font-size: 15px; padding: 8px 16px; margin-right: 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>KWS 自检（浏览器侧）</h1>
+    <p>
+      用途：在真机/浏览器上确认 <code>/kws-assets</code> 的 wasm + 模型能加载、能对一段 16k WAV 命中「小伴」。
+      走的是与 <code>src/pad/audio/kws.ts</code> **同一份运行时**（只少了麦克风采集那一段）。
+      验收后可直接删除本文件，不参与业务逻辑。
+    </p>
+    <p>
+      <button id="pick">选择 16k 单声道 WAV（说「小伴」）</button>
+      <input id="file" type="file" accept="audio/wav,audio/*" hidden />
+      <button id="mic">用麦克风实时听（需 HTTPS/localhost）</button>
+    </p>
+    <pre id="log">尚未开始。</pre>
+    <script type="module">
+      const logEl = document.getElementById("log");
+      const lines = [];
+      const log = (msg) => {
+        lines.push(msg);
+        logEl.textContent = lines.join("\n");
+        console.info(msg);
+      };
+      const t0 = performance.now();
+
+      const KWS_ASSETS = "/kws-assets";
+      let spotter = null;
+
+      async function initSpotter() {
+        const runtime = await import(`${KWS_ASSETS}/kws.js`);
+        log(`运行时脚本已 import（${(performance.now() - t0).toFixed(0)}ms）`);
+        const module = await runtime.initKWSModule();
+        log(`wasm 就绪（${(performance.now() - t0).toFixed(0)}ms）`);
+        const metaResp = await fetch(`${KWS_ASSETS}/model/preload.js.metadata`);
+        const metadata = await metaResp.json();
+        const dataResp = await fetch(`${KWS_ASSETS}/model/preload.data`);
+        const data = await dataResp.arrayBuffer();
+        const written = runtime.loadModelPack(module, data, metadata);
+        log(`模型包挂载 ${written.join(" ")}（${(data.byteLength / 1048576).toFixed(1)}MB）`);
+        spotter = runtime.createKeywordSpotter(module, {
+          model: { encoder: "/encoder.onnx", decoder: "/decoder.onnx", joiner: "/joiner.onnx", tokens: "/tokens.txt" },
+          keywords: [{ label: "小伴", matches: [{ tokens: ["x", "iǎo", "b", "àn"], score: 1, threshold: 0.25 }] }],
+          maxActivePaths: 4,
+        });
+        spotter.processAudio(new Float32Array(320), 16000);
+        spotter.reset();
+        log(`解码器就绪，开始喂数据`);
+      }
+
+      /** 任意采样率 → 16k 单声道 Float32（与 MicCapture 的 worklet 输出同规格） */
+      async function to16k(arrayBuffer) {
+        const ctx = new OfflineAudioContext(1, 16000, 16000);
+        const decoded = await ctx.decodeAudioData(arrayBuffer);
+        const mono = decoded.getChannelData(0);
+        if (decoded.sampleRate === 16000) return mono;
+        const frames = Math.ceil((decoded.length / decoded.sampleRate) * 16000);
+        const off = new OfflineAudioContext(1, frames, 16000);
+        const src = off.createBufferSource();
+        src.buffer = await off.createBuffer(1, decoded.length, decoded.sampleRate).then((b) => {
+          b.copyToChannel(decoded.getChannelData(0), 0);
+          return b;
+        });
+        src.connect(off.destination);
+        src.start();
+        return (await off.startRendering()).getChannelData(0);
+      }
+
+      async function runOn(wav) {
+        await initSpotter();
+        const pcm = await to16k(wav);
+        log(`音频 ${(pcm.length / 16000).toFixed(2)}s @16k`);
+        const CHUNK = 320;
+        const start = performance.now();
+        let hits = 0, firstHitMs = -1;
+        for (let i = 0; i + CHUNK <= pcm.length; i += CHUNK) {
+          const out = spotter.processAudio(pcm.subarray(i, i + CHUNK), 16000);
+          if (out.length && firstHitMs < 0) {
+            firstHitMs = ((i + CHUNK) / 16000) * 1000;
+            hits += 1;
+            log(`<span class="ok">命中「${out[0].label}」 tokens=${out[0].tokens.join(" ")}，音频内 ${Math.round(firstHitMs)}ms</span>`);
+            break;
+          }
+        }
+        const wall = performance.now() - start;
+        log(hits ? `耗时 ${wall.toFixed(0)}ms（${(wall / (pcm.length / 16)).toFixed(1)}x 实时）` : `<span class="bad">未命中</span>（${wall.toFixed(0)}ms）`);
+      }
+
+      // ?wav=<同源 URL> 可直接跑一段样本，便于自动化/现场验机（无需人工选文件）
+      const autoWav = new URLSearchParams(location.search).get("wav");
+      if (autoWav) {
+        log(`自动加载 ${autoWav}`);
+        fetch(autoWav)
+          .then((r) => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.arrayBuffer();
+          })
+          .then(runOn)
+          .catch((err) => log(`<span class="bad">失败：${err?.message ?? err}</span>`));
+      }
+
+      document.getElementById("pick").onclick = () => document.getElementById("file").click();
+      document.getElementById("file").onchange = async (e) => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        log(`选中 ${f.name}（${(f.size / 1024).toFixed(0)}KB）`);
+        try {
+          await runOn(await f.arrayBuffer());
+        } catch (err) {
+          log(`<span class="bad">失败：${err?.message ?? err}</span>`);
+        }
+      };
+
+      document.getElementById("mic").onclick = async () => {
+        try {
+          await initSpotter();
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
+          const ctx = new AudioContext({ sampleRate: 16000 });
+          const src = ctx.createMediaStreamSource(stream);
+          const proc = ctx.createScriptProcessor(1024, 1, 1);
+          proc.onaudioprocess = (ev) => {
+            const chunk = ev.inputBuffer.getChannelData(0);
+            const out = spotter.processAudio(chunk, ctx.sampleRate);
+            if (out.length) {
+              log(`<span class="ok">命中「${out[0].label}」（麦克风实时）</span>`);
+              stream.getTracks().forEach((t) => t.stop());
+              proc.disconnect();
+            }
+          };
+          src.connect(proc);
+          proc.connect(ctx.destination);
+          log("麦克风已开，请说「小伴」…");
+        } catch (err) {
+          log(`<span class="bad">麦克风失败：${err?.message ?? err}</span>`);
+        }
+      };
+    </script>
+  </body>
+</html>

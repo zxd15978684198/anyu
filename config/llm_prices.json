@@ -1,0 +1,45 @@
+{
+  "version": "2026-11-13.1",
+  "source": "anyu 本地价目表（示意值，非供应商实时报价；对外报告前请按供应商价目表核对替换）",
+  "note": "同一 model 可有多条记录，按 effective_from 取「不晚于统计日期的最新一条」。单价单位：每 100 万 token。cache_read_per_1m 为 null 表示该模型未公布缓存读单价，缓存成本输出 null 而不是 0。",
+  "models": {
+    "deepseek-v4.1-flash": [
+      {
+        "currency": "CNY",
+        "input_per_1m": 1.0,
+        "output_per_1m": 4.0,
+        "cache_read_per_1m": 0.1,
+        "effective_from": "2026-06-01",
+        "source": "示意值（占位）：2026-06-01 起的旧价，用于演示按生效日取价"
+      },
+      {
+        "currency": "CNY",
+        "input_per_1m": 2.0,
+        "output_per_1m": 8.0,
+        "cache_read_per_1m": 0.2,
+        "effective_from": "2026-11-01",
+        "source": "示意值（占位）：2026-11-01 起的现价"
+      }
+    ],
+    "deepseek-chat": [
+      {
+        "currency": "CNY",
+        "input_per_1m": 2.0,
+        "output_per_1m": 8.0,
+        "cache_read_per_1m": null,
+        "effective_from": "2026-01-01",
+        "source": "示意值（占位）：deepseek-chat 单一价目，未公布缓存读单价"
+      }
+    ],
+    "qwen-plus": [
+      {
+        "currency": "CNY",
+        "input_per_1m": 0.8,
+        "output_per_1m": 2.0,
+        "cache_read_per_1m": null,
+        "effective_from": "2026-03-01",
+        "source": "示意值（占位）：qwen-plus 单一价目"
+      }
+    ]
+  }
+}

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>spike · 正式代码状态机验证</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #eeeaf1;
+        font: 13px/1.6 "Consolas", "Microsoft YaHei", monospace;
+      }
+      main {
+        display: flex;
+        gap: 16px;
+        padding: 16px;
+      }
+      canvas {
+        width: 560px;
+        height: 560px;
+        border-radius: 32px;
+        border: 1px solid #d3c9dc;
+        display: block;
+      }
+      pre {
+        margin: 0;
+        max-width: 560px;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <canvas id="stage" width="560" height="560"></canvas>
+      <pre id="out">跑 setSpeaking / nod 序列中…</pre>
+    </main>
+    <!-- 由 prod-check.ts 经 esbuild 打成单文件（见 RESULT.md「状态接口验证」一节） -->
+    <script type="module" src="./prod-check.bundle.js"></script>
+  </body>
+</html>

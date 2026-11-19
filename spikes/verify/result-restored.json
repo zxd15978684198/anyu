@@ -1,0 +1,22 @@
+{
+  "step": "restored",
+  "ok": true,
+  "canvasVisibleMs": 3635,
+  "vrmLoadLog": [
+    "[vrm_load] ok=true 995ms"
+  ],
+  "hud": {
+    "canvasOpacity": "1",
+    "canvasSize": [
+      516,
+      516
+    ],
+    "fallbackImg": null
+  },
+  "pageErrors": [],
+  "askDismiss": {
+    "dismissed": true,
+    "ms": 563
+  },
+  "screenshot": "spikes\\verify\\06-restored.png"
+}

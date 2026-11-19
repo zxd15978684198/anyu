@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>spike · avatar</title>
+    <!--
+      零构建：spike 只验证「资产能不能跑」，不引 vite / esbuild（pnpm 12 默认禁 build script，
+      esbuild 的 postinstall 被拦）。浏览器原生 import map 把 three 的三个裸说明符接上即可。
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/node_modules/three/build/three.module.js",
+          "three/examples/jsm/": "/node_modules/three/examples/jsm/",
+          "@pixiv/three-vrm": "/node_modules/@pixiv/three-vrm/lib/three-vrm.module.js",
+          "@pixiv/three-vrm-animation": "/node_modules/@pixiv/three-vrm-animation/lib/three-vrm-animation.module.js"
+        }
+      }
+    </script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #eeeaf1; /* pad 的 --color-brand-soft，与正式舞台同底 */
+        font: 13px/1.6 "Consolas", "Microsoft YaHei", monospace;
+        color: #333;
+      }
+      main {
+        display: flex;
+        gap: 16px;
+        padding: 16px;
+      }
+      canvas {
+        width: 560px;
+        height: 560px;
+        border-radius: 32px;
+        border: 1px solid #d3c9dc;
+        display: block;
+      }
+      pre {
+        margin: 0;
+        max-width: 520px;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <canvas id="stage" width="560" height="560"></canvas>
+      <pre id="out">加载中…（/avatars/vrm1_sample.vrm）</pre>
+    </main>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

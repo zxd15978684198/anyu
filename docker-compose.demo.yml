@@ -1,0 +1,4 @@
+services:
+  backend:
+    environment:
+      ASR_PROVIDER: "mock"

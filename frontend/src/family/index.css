@@ -1,0 +1,965 @@
+/* family 入口样式：设计 token 唯一真源（src/theme/tokens.css）。
+   首行 @import "tailwindcss" 使 tokens.css 的 @theme static 被处理为
+   真实 :root 变量（否则浏览器会整体忽略 @theme 块，变量不存在）。
+   组件样式为手写原生 CSS，一律 var() 引用 token，禁止硬编码色值。
+   375px 移动优先：无横向滚动、正文 ≥16px、触控 ≥48px（前端页面方案 §3.3）。 */
+@import "tailwindcss" source(none);
+/* 只扫本端源码：不加限定时 Tailwind 扫全仓，pad 专属 utility（.grid-cols-2/.animate-pulse 等）
+   会漏进 family 产物，实测把 16KB 源码撑成 44KB（前端计划 W0）。 */
+@source "./**/*.tsx";
+@source "./**/*.ts";
+@import "../theme/tokens.css";
+/* 三端共享 UI 原语（焦点环 / 滚动条 / 骨架屏 / Toast / 错误边界 / reduced-motion）。 */
+@import "../shared/ui/primitives.css";
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  color: var(--color-ink);
+}
+
+/* ---- 登录 / 占位首页共用布局（375px 单列，卡片在小屏内铺满） ---- */
+.auth-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-canvas);
+  padding: 24px 16px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  padding: 32px 20px;
+}
+
+.auth-card.home-card {
+  text-align: center;
+  padding: 40px 24px;
+}
+
+.auth-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.auth-subtitle {
+  margin: 8px 0 0;
+  font-size: 16px;
+  color: var(--color-ink-muted);
+}
+
+.auth-note {
+  margin: 24px 0 0;
+  font-size: 16px;
+  color: var(--color-ink-muted);
+}
+
+.auth-actions {
+  margin-top: 32px;
+}
+
+/* ---- 表单 ---- */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 28px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field > label {
+  font-size: 16px;
+  color: var(--color-ink);
+}
+
+.input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  font-size: 16px;
+  color: var(--color-ink);
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.input:focus {
+  border-color: var(--color-brand);
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--color-danger-ink);
+}
+
+.input-wrap {
+  position: relative;
+}
+
+.input-wrap .input {
+  padding-right: 52px;
+}
+
+.icon-btn {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--color-ink-muted);
+}
+
+.helper-error {
+  margin: 0;
+  /* 登录页原有 14px，为满足家属端「正文 ≥16px」统一抬到 16px */
+  font-size: 16px;
+  color: var(--color-danger-ink);
+}
+
+/* ---- 错误提示统一形态：danger-soft 底 + danger-ink 字（task-05 §3 要点 4） ---- */
+.alert-danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger-ink);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 16px;
+}
+
+/* ---- 按钮（前端页面方案 §4.2：主按钮 brand 底反白字；次按钮 surface 底 1px 线） ---- */
+.btn-primary {
+  width: 100%;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--color-brand);
+  color: var(--color-ink-inverse);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-brand-strong);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--color-surface-sunken);
+}
+
+/* ---- 加载指示 ---- */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--color-brand-soft);
+  border-top-color: var(--color-brand);
+  animation: kb-spin 0.8s linear infinite;
+}
+
+.spinner-inverse {
+  border-color: var(--color-brand);
+  border-top-color: var(--color-ink-inverse);
+}
+
+@keyframes kb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==========================================================================
+   W4 家属端业务页（日报列表 / 日报详情 / 通知中心）
+   375px 移动优先，三条硬约束落到具体取舍：
+   - 正文一律 16px（含辅助说明、图例、筛选胶囊），字阶不再往下探；
+   - 所有可点元素 min-height/尺寸 48px（任务要求 ≥44px，《前端页面方案》§4.1
+     要求 family ≥48px，取更严的一侧）；
+   - 只有 `.elder-switcher` 允许内部横向滚动，其它容器一律 flex-wrap，
+     保证 document.documentElement.scrollWidth 不超出视口。
+   颜色全部来自 tokens.css，本批未新增任何硬编码色值。
+   ========================================================================== */
+
+/* ---- 无障碍：仅读屏可见 ---- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- 应用骨架 ---- */
+.app-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-canvas);
+}
+
+.app-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 8px 10px 16px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.app-bar-sub {
+  padding-left: 4px;
+}
+
+.app-bar-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.app-greeting {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.app-sub {
+  margin: 4px 0 0;
+  font-size: 16px;
+  color: var(--color-ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.app-bar-title {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-bar-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 纯图标按钮：48×48 触控靶，语义靠 aria-label */
+.icon-action {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.icon-action:active {
+  background: var(--color-surface-sunken);
+}
+
+.app-main {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px 16px 32px;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---- 长者切换：唯一允许横向滚动的容器 ---- */
+.elder-switcher {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0 6px;
+  scrollbar-width: none;
+}
+
+.elder-switcher::-webkit-scrollbar {
+  display: none;
+}
+
+.elder-tab {
+  flex: 0 0 auto;
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid var(--color-brand-line);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 16px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.elder-tab.is-active {
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+  color: var(--color-ink-inverse);
+  font-weight: 700;
+}
+
+/* ---- 区块标题 ---- */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.section-count {
+  font-size: 16px;
+  color: var(--color-ink-muted);
+}
+
+.sub-title {
+  margin: 16px 0 4px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+/* ---- 卡片 ---- */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+}
+
+.detail-text {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.muted-note {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-warning-soft);
+  color: var(--color-warning-ink);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* ---- 键值行（当日健康） ---- */
+.kv {
+  display: flex;
+  flex-direction: column;
+}
+
+.kv-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.kv-row:last-child {
+  border-bottom: 0;
+}
+
+.kv-label {
+  flex: 0 0 auto;
+  font-size: 16px;
+  color: var(--color-ink-muted);
+}
+
+.kv-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+/* 数据来源是整句说明，左右对齐会读得别扭：标签在上、内容在下 */
+.kv-source .kv-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+}
+
+.kv-source .kv-value {
+  text-align: left;
+  font-weight: 400;
+}
+
+.reason-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-ink);
+}
+
+/* ---- 日报卡片（整张卡就是按钮） ---- */
+.report-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.report-card {
+  width: 100%;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  text-align: left;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.report-card:active {
+  background: var(--color-surface-sunken);
+}
+
+.report-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.report-date {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.report-badge {
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  font-size: 16px;
+  line-height: 26px;
+}
+
+.report-summary {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.report-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-brand);
+}
+
+/* ---- 严重度色点：色 + 文字，不只靠颜色 ---- */
+.sev {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.sev-dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.sev-label {
+  font-size: 16px;
+  color: var(--color-ink-muted);
+}
+
+.sev-red .sev-dot {
+  background: var(--color-danger-ink);
+}
+
+.sev-yellow .sev-dot {
+  background: var(--color-warning-ink);
+}
+
+.sev-green .sev-dot {
+  background: var(--color-success-ink);
+}
+
+/* 缺失用空心点：不是「等级」，而是「没有数据」 */
+.sev-missing .sev-dot {
+  background: var(--color-surface);
+  border: 2px solid var(--color-ink-subtle);
+}
+
+/* ---- 日报详情 ---- */
+.detail-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-date {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: var(--color-ink-muted);
+}
+
+.detail-elder {
+  overflow-wrap: anywhere;
+}
+
+.audio-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.audio-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--color-brand);
+  font-weight: 600;
+}
+
+/* ---- 趋势图 ---- */
+.chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  color: var(--color-ink-muted);
+}
+
+.legend-swatch {
+  width: 16px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.legend-systolic {
+  background: var(--color-brand);
+}
+
+.legend-diastolic {
+  background: var(--color-info-ink);
+}
+
+.chart-note {
+  margin: 0;
+  font-size: 16px;
+  color: var(--color-ink-muted);
+}
+
+.chart-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 24px 8px;
+  text-align: center;
+}
+
+.chart-empty-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.chart-empty-hint {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-ink-muted);
+}
+
+/* ---- 通知中心 ---- */
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.chip.is-active {
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+  color: var(--color-ink-inverse);
+  font-weight: 700;
+}
+
+.notif-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notif-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+}
+
+.notif-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notif-top .sev {
+  margin-left: 0;
+}
+
+.notif-time {
+  margin-left: auto;
+  font-size: 16px;
+  color: var(--color-ink-muted);
+}
+
+.notif-kind {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.notif-summary {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.load-more {
+  margin-top: 4px;
+}
+
+/* ---- 加载 / 错误 / 空态 ---- */
+.state-center {
+  min-height: 60dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 16px;
+}
+
+.state-text {
+  margin: 0;
+  font-size: 16px;
+  color: var(--color-ink-muted);
+}
+
+.skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+}
+
+.skeleton-bar {
+  display: block;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--color-surface-sunken);
+  animation: kb-pulse 1.2s ease-in-out infinite;
+}
+
+.skeleton-bar-sm {
+  width: 42%;
+}
+
+.skeleton-bar-md {
+  width: 66%;
+}
+
+.skeleton-bar-lg {
+  width: 88%;
+}
+
+@keyframes kb-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* 网络失败：整块可点的按钮，文字就是「网络不太好，点这里重试」 */
+.retry-block {
+  width: 100%;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px;
+  background: var(--color-surface);
+  border: 1px dashed var(--color-brand-line);
+  border-radius: var(--radius-card);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.retry-text {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.retry-hint {
+  font-size: 16px;
+  color: var(--color-ink-muted);
+}
+
+.empty-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  background: var(--color-surface);
+  border: 1px dashed var(--color-line);
+  border-radius: var(--radius-card);
+}
+
+.empty-icon {
+  display: inline-flex;
+  color: var(--color-brand-line);
+}
+
+.empty-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.empty-hint {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-ink-muted);
+}
+
+/* ==========================================================================
+   安全区与宽屏（前端计划 W3）。
+   收敛前：`env(safe-area-inset-*)` 命中 0、family.html 无 viewport-fit=cover，
+   刘海屏底部内容会被裁掉；宽屏则是一条 480 窄柱 + 大片空白。
+   ========================================================================== */
+
+/* ---- 刘海屏 / 底部手势条：顶栏与正文都要让开安全区 ---- */
+.app-bar {
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  padding-left: calc(16px + env(safe-area-inset-left, 0px));
+  padding-right: calc(8px + env(safe-area-inset-right, 0px));
+}
+
+.app-main {
+  padding-left: calc(16px + env(safe-area-inset-left, 0px));
+  padding-right: calc(16px + env(safe-area-inset-right, 0px));
+  padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
+}
+
+.auth-page {
+  padding-top: calc(24px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
+/* ---- 宽屏（≥1024）：阅读列仍保持 480（长行不利于阅读），
+   但把「一条窄柱浮在大片空白上」改成**有意的居中卡片**：
+   给外壳一层同族渐变底 + 内容列抬升为带边框与阴影的面。
+   注：是否改成「左列表 + 右详情」双栏属 Q-5，**尚未裁决**，
+   这里不动页面结构与数据流，只做观感处理。 ---- */
+@media (min-width: 1024px) {
+  .app-shell {
+    background:
+      radial-gradient(70% 50% at 18% 0%, var(--color-brand-soft) 0%, transparent 60%),
+      radial-gradient(60% 45% at 88% 8%, var(--color-info-soft) 0%, transparent 58%),
+      var(--color-canvas);
+  }
+  .app-bar {
+    max-width: 520px;
+    margin: 0 auto;
+    border: 1px solid var(--color-line);
+    border-top: none;
+    border-radius: 0 0 var(--radius-card) var(--radius-card);
+    box-shadow: var(--ui-shadow-1);
+  }
+  .app-main {
+    max-width: 520px;
+    padding-top: 24px;
+    padding-bottom: 56px;
+  }
+  .auth-page {
+    background:
+      radial-gradient(60% 45% at 22% 10%, var(--color-brand-soft) 0%, transparent 62%),
+      radial-gradient(55% 40% at 82% 88%, var(--color-success-soft) 0%, transparent 60%),
+      var(--color-canvas);
+  }
+  .auth-card {
+    box-shadow: var(--ui-shadow-2);
+  }
+}

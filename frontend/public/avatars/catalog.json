@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "generated_at": "2026-11-12T10:33:42Z",
+  "source": "vrm-playground",
+  "models": [
+    {
+      "id": "lisa",
+      "display_name": "丽莎",
+      "gender": "female",
+      "character": "原神 / Genshin Impact",
+      "file": "Lisa.vrm",
+      "url": "/avatars/models/Lisa.vrm",
+      "bytes": 16490420,
+      "weight": "normal",
+      "license": "local-demo-only",
+      "sha256": "c3188a17acfa80b18973a7c3ae951f56fe1f812e71cf2c86d05b78a2ed5c01a6"
+    },
+    {
+      "id": "shenhe",
+      "display_name": "申鹤",
+      "gender": "female",
+      "character": "原神 / Genshin Impact",
+      "file": "Shenhe.vrm",
+      "url": "/avatars/models/Shenhe.vrm",
+      "bytes": 12794508,
+      "weight": "normal",
+      "license": "local-demo-only",
+      "sha256": "4172b9deb7d4125418e90240007cf095fbc433b75dc1cbad90a134130d991967"
+    },
+    {
+      "id": "firefly",
+      "display_name": "流萤",
+      "gender": "female",
+      "character": "星穹铁道 / Honkai: Star Rail",
+      "file": "Firefly.vrm",
+      "url": "/avatars/models/Firefly.vrm",
+      "bytes": 14550788,
+      "weight": "normal",
+      "license": "local-demo-only",
+      "sha256": "9b6c3c1d133fda50869ee715a64db1ed89bf79ee06cfcdca784a4a24d1415b33"
+    },
+    {
+      "id": "sparkle",
+      "display_name": "花火",
+      "gender": "female",
+      "character": "星穹铁道 / Honkai: Star Rail",
+      "file": "Sparkle.vrm",
+      "url": "/avatars/models/Sparkle.vrm",
+      "bytes": 12311876,
+      "weight": "normal",
+      "license": "local-demo-only",
+      "sha256": "7fc3e74722cfc4577320cdc3ca2bf6f878505829b8dc35fa4c2b450ac7f0ed16"
+    },
+    {
+      "id": "ningguang",
+      "display_name": "凝光",
+      "gender": "female",
+      "character": "原神 / Genshin Impact",
+      "file": "Ningguang.vrm",
+      "url": "/avatars/models/Ningguang.vrm",
+      "bytes": 11042512,
+      "weight": "normal",
+      "license": "local-demo-only",
+      "sha256": "b8688f813ad94a20ef619813bfcb3ea9eba2c64c4593908a6540c11f5da6f582"
+    },
+    {
+      "id": "jingyuan",
+      "display_name": "景元",
+      "gender": "male",
+      "character": "星穹铁道 / Honkai: Star Rail",
+      "file": "Jingyuan.vrm",
+      "url": "/avatars/models/Jingyuan.vrm",
+      "bytes": 13774608,
+      "weight": "normal",
+      "license": "local-demo-only",
+      "sha256": "2ead5201068b1ad84c3fd7af78558b2090890d9bfe5f0edf928871ae233695f5"
+    },
+    {
+      "id": "danheng",
+      "display_name": "丹恒",
+      "gender": "male",
+      "character": "星穹铁道 / Honkai: Star Rail",
+      "file": "Danheng.vrm",
+      "url": "/avatars/models/Danheng.vrm",
+      "bytes": 8133656,
+      "weight": "light",
+      "license": "local-demo-only",
+      "sha256": "b31ffce747d43644b6ecbdff65f9ac871f102ab9a1f87b4c57f382a7f20f39b9"
+    },
+    {
+      "id": "neuvillette",
+      "display_name": "那维莱特",
+      "gender": "male",
+      "character": "原神 / Genshin Impact",
+      "file": "Neuvillette.vrm",
+      "url": "/avatars/models/Neuvillette.vrm",
+      "bytes": 6587492,
+      "weight": "light",
+      "license": "local-demo-only",
+      "sha256": "845fcb6a569a69d6ed2c423b25149ea9b34de0816e1066b4cd805982b27b3193"
+    }
+  ],
+  "animations": [
+    {
+      "id": "neutral",
+      "display_name": "静息",
+      "scene": "idle",
+      "file": "neutral.vrma",
+      "url": "/avatars/animations/neutral.vrma",
+      "bytes": 237868,
+      "license": "Apache-2.0",
+      "bundled": false,
+      "sha256": "91642c3593383d6b8e3d7ae2e5e408abac89a2baa31d2c1a3b625a46b0ab92b6"
+    },
+    {
+      "id": "idle-2",
+      "display_name": "倾听变体",
+      "scene": "listen",
+      "file": "idle-2.vrma",
+      "url": "/avatars/animations/idle-2.vrma",
+      "bytes": 443552,
+      "license": "Apache-2.0",
+      "bundled": false,
+      "sha256": "7985c8621c2fb965b7d6f5236efa885cfa7fa92995d544f470dc0028864efa13"
+    },
+    {
+      "id": "idle-talking-6",
+      "display_name": "说话",
+      "scene": "talking",
+      "file": "idle-talking-6.vrma",
+      "url": "/avatars/animations/idle-talking-6.vrma",
+      "bytes": 560376,
+      "license": "Apache-2.0",
+      "bundled": false,
+      "sha256": "1648d8a03d7e563cad203fa88b80cfd7629e70292cbcc406bc730ac1ffc8bf60"
+    },
+    {
+      "id": "world-sit-talking",
+      "display_name": "坐姿说话",
+      "scene": "talking_sit",
+      "file": "world-sit-talking.vrma",
+      "url": "/avatars/animations/world-sit-talking.vrma",
+      "bytes": 275368,
+      "license": "Apache-2.0",
+      "bundled": false,
+      "sha256": "6b4bd3302df5537fe2a82551b3e36450e96d52381c3050bb428577956b9b86f1"
+    },
+    {
+      "id": "vrma-01",
+      "display_name": "展示动作",
+      "scene": "show",
+      "file": "VRMA_01.vrma",
+      "url": "/avatars/animations/VRMA_01.vrma",
+      "bytes": 1348388,
+      "license": "Apache-2.0",
+      "bundled": false,
+      "sha256": "f45abc44800c647fa106537a2e31a84cb83b74cf3dd8a0ee71c6915f1555ac57"
+    },
+    {
+      "id": "dance-28",
+      "display_name": "才艺舞蹈",
+      "scene": "talent",
+      "file": "ダンス28.vrma",
+      "url": "/avatars/animations/%E3%83%80%E3%83%B3%E3%82%B928.vrma",
+      "bytes": 1931060,
+      "license": "Apache-2.0",
+      "bundled": false,
+      "sha256": "493fcfec6815b95adc8694dc2b1805c19bc4a198a05f33933f0c3eee90c1d35a"
+    },
+    {
+      "id": "bundled-idle",
+      "display_name": "内置静息",
+      "scene": "idle",
+      "file": "idle.vrma",
+      "url": "/avatars/animations/idle.vrma",
+      "bytes": 193244,
+      "license": "Apache-2.0",
+      "bundled": true,
+      "sha256": "9563c582418bd5b51da473ea85b41722cb5304f84128935c3b570c72316c444a"
+    },
+    {
+      "id": "bundled-talking",
+      "display_name": "内置说话",
+      "scene": "talking",
+      "file": "idle-talking.vrma",
+      "url": "/avatars/animations/idle-talking.vrma",
+      "bytes": 268464,
+      "license": "Apache-2.0",
+      "bundled": true,
+      "sha256": "74f50c1b63bb8c2b19276dd7db26c9e8096da72acb521d4e635b059730e78bd8"
+    },
+    {
+      "id": "bundled-nod",
+      "display_name": "点头",
+      "scene": "nod",
+      "file": "nod.vrma",
+      "url": "/avatars/animations/nod.vrma",
+      "bytes": 137860,
+      "license": "Apache-2.0",
+      "bundled": true,
+      "sha256": "c5f715092eacacc827b52c984ebd5c8b8d991b2e34102fbc03235b01c6bcbbe8"
+    }
+  ],
+  "skipped": []
+}

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+
+# 包管理器固定 pnpm（AGENTS §3；CI 用 `pnpm --dir frontend install --frozen-lockfile`）。
+# npm 锁文件曾与 pnpm 锁同时入库且更旧，任何人 `npm i` 会装出另一套依赖树。
+# 已移除并在此忽略，防止它再被误提交。
+package-lock.json

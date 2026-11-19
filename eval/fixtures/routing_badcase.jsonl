@@ -1,0 +1,1 @@
+{"fixture_line": 71, "id": "b001", "category": "boundary", "text": "我上次摔跤，膝盖到现在还酸", "expected_layer": "L1", "actual_layer": "L0", "actual_intent": "alert", "actual_confidence": null, "route_ms": 0.021, "reason": "期望 L1，实际 L0"}

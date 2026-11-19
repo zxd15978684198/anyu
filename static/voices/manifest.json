@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "voice": "zh-CN-XiaoxiaoNeural",
+  "entries": {
+    "af6b37e94709514258eca9199c6044a5d549f87c8e2958f8e66ad332eb40a51f": {
+      "text": "您好，我在呢。有什么想聊的，随时跟我说一声。",
+      "voice": "zh-CN-XiaoxiaoNeural",
+      "file": "greeting_generic.wav",
+      "duration_ms": 5376
+    },
+    "aae9af54bda86efce2ad974f8745056dff4eddd0f95d70371f0155fac3d1b19f": {
+      "text": "好，已经记下您吃过了。",
+      "voice": "zh-CN-XiaoxiaoNeural",
+      "file": "medication_taken.wav",
+      "duration_ms": 2736
+    },
+    "ccf594e0cda9de0e8a92c88ac03aec2fd032ccc6bbf855ed129c23eb6c9e1232": {
+      "text": "好，我过一会儿再提醒您。",
+      "voice": "zh-CN-XiaoxiaoNeural",
+      "file": "medication_snooze.wav",
+      "duration_ms": 2808
+    },
+    "6f90507d3b01158529bf1b9f15036d57afbb80b6141c1df011d30bd07ba34086": {
+      "text": "今天量血压了吗？收缩压（高压）是多少呀？",
+      "voice": "zh-CN-XiaoxiaoNeural",
+      "file": "health_systolic.wav",
+      "duration_ms": 4944
+    },
+    "f3c006aa2405d4cba02ad259cb9a616aa5e8ac37a1d0ce4e4663ad1cded7b16e": {
+      "text": "那低压（舒张压）是多少呢？",
+      "voice": "zh-CN-XiaoxiaoNeural",
+      "file": "health_diastolic.wav",
+      "duration_ms": 3144
+    },
+    "36ba4c2d5d0bfe01274a3632a27010e04087a2d56808bf8ff125dcd52445e7c9": {
+      "text": "心率是多少呀？就是心跳每分钟多少下。",
+      "voice": "zh-CN-XiaoxiaoNeural",
+      "file": "health_heart_rate.wav",
+      "duration_ms": 4752
+    },
+    "ba93703e40efcd54466bbdbbeaa8001f85dfe6214dcd331643eba55da806f7cc": {
+      "text": "昨晚睡了几个小时呀？",
+      "voice": "zh-CN-XiaoxiaoNeural",
+      "file": "health_sleep.wav",
+      "duration_ms": 2472
+    },
+    "316d534a7a3d4f1722076b96d381792812a0273c315c29824029ea8dc3fa0cbd": {
+      "text": "今天心情怎么样？从 1 到 5 打个分，1 是很差，5 是很好。",
+      "voice": "zh-CN-XiaoxiaoNeural",
+      "file": "health_mood.wav",
+      "duration_ms": 6192
+    }
+  }
+}

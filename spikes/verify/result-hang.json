@@ -1,0 +1,26 @@
+{
+  "step": "hang",
+  "ok": true,
+  "fallbackVisibleMs": 5656,
+  "fallbackImageLoaded": true,
+  "vrmLoadLog": [
+    "[vrm_load] ok=false reason=timeout 5012ms"
+  ],
+  "hud": {
+    "fallback": {
+      "src": "http://127.0.0.1:5173/avatars/fallback.png",
+      "naturalWidth": 1920,
+      "naturalHeight": 1080
+    },
+    "canvasOpacity": "0",
+    "blank": false,
+    "text": "正在说 退出登录 您好呀，我在这儿陪着您，想聊点什么就跟我说。"
+  },
+  "pageErrors": [],
+  "uncaught": 0,
+  "askDismiss": {
+    "dismissed": true,
+    "ms": 107
+  },
+  "screenshot": "spikes\\verify\\05-fallback-timeout.png"
+}

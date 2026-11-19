@@ -1,0 +1,335 @@
+{
+  "question": "今天天气怎么样？",
+  "mode": "sentence_stream_v1_1",
+  "warmup_runs": 3,
+  "measured_runs": 20,
+  "summary": {
+    "runs_measured": 20,
+    "p50_ms": 5.79,
+    "p95_ms": 6.47,
+    "min_ms": 5.66,
+    "max_ms": 7.03,
+    "within_1500ms": 20,
+    "pass": true,
+    "budget_ms": 1500.0,
+    "required": 19
+  },
+  "round_summary": {
+    "p50_ms": 5.79,
+    "p95_ms": 6.47,
+    "min_ms": 5.66,
+    "max_ms": 7.03
+  },
+  "runs": [
+    {
+      "index": 0,
+      "e2e_ms": 9.61,
+      "round_total_ms": 9.61,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": true,
+      "degraded": false
+    },
+    {
+      "index": 1,
+      "e2e_ms": 5.86,
+      "round_total_ms": 5.86,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": true,
+      "degraded": false
+    },
+    {
+      "index": 2,
+      "e2e_ms": 6.28,
+      "round_total_ms": 6.28,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": true,
+      "degraded": false
+    },
+    {
+      "index": 3,
+      "e2e_ms": 5.67,
+      "round_total_ms": 5.67,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": true,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 4,
+      "e2e_ms": 6.11,
+      "round_total_ms": 6.11,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 5,
+      "e2e_ms": 6.2,
+      "round_total_ms": 6.2,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 6,
+      "e2e_ms": 5.66,
+      "round_total_ms": 5.66,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 7,
+      "e2e_ms": 6.47,
+      "round_total_ms": 6.47,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 8,
+      "e2e_ms": 5.92,
+      "round_total_ms": 5.92,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 9,
+      "e2e_ms": 5.79,
+      "round_total_ms": 5.79,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 10,
+      "e2e_ms": 6.01,
+      "round_total_ms": 6.01,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 11,
+      "e2e_ms": 5.73,
+      "round_total_ms": 5.73,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 12,
+      "e2e_ms": 5.79,
+      "round_total_ms": 5.79,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 13,
+      "e2e_ms": 6.2,
+      "round_total_ms": 6.2,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 14,
+      "e2e_ms": 5.7,
+      "round_total_ms": 5.7,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 15,
+      "e2e_ms": 5.7,
+      "round_total_ms": 5.7,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 16,
+      "e2e_ms": 6.08,
+      "round_total_ms": 6.08,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 17,
+      "e2e_ms": 5.79,
+      "round_total_ms": 5.79,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 18,
+      "e2e_ms": 5.78,
+      "round_total_ms": 5.78,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 19,
+      "e2e_ms": 7.03,
+      "round_total_ms": 7.03,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 20,
+      "e2e_ms": 5.7,
+      "round_total_ms": 5.7,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 21,
+      "e2e_ms": 6.45,
+      "round_total_ms": 6.45,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 22,
+      "e2e_ms": 6.06,
+      "round_total_ms": 6.06,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    },
+    {
+      "index": 23,
+      "e2e_ms": 5.79,
+      "round_total_ms": 5.79,
+      "pcm_bytes": 19200,
+      "pcm_calls": 1,
+      "cold_start": false,
+      "warmup": false,
+      "degraded": false
+    }
+  ],
+  "timings": {
+    "route_ms": {
+      "count": 20.0,
+      "sum_ms": 0.0,
+      "max_ms": 0.0,
+      "p50_ms": 0.0,
+      "p95_ms": 0.0
+    },
+    "tts_first_packet_ms": {
+      "count": 20.0,
+      "sum_ms": 119.49679998724605,
+      "max_ms": 7.007799998973496,
+      "p50_ms": 5.776300000434276,
+      "p95_ms": 6.441099998482969
+    },
+    "llm_first_token_ms": {
+      "count": 20.0,
+      "sum_ms": 119.49679998724605,
+      "max_ms": 7.007799998973496,
+      "p50_ms": 5.776300000434276,
+      "p95_ms": 6.441099998482969
+    },
+    "tts_total_ms": {
+      "count": 20.0,
+      "sum_ms": 119.93949998577591,
+      "max_ms": 7.0340999991458375,
+      "p50_ms": 5.796800000098301,
+      "p95_ms": 6.46739999865531
+    }
+  },
+  "counters": {
+    "route_placeholder_total{source=not_implemented}": 20,
+    "reply_source_total{provider=mock}": 20
+  },
+  "probe": {
+    "text": "今天杭州的天气相当不错，晴朗少云，很适合到室外走一走。下午三点以后云量会慢慢增多，出门记得带把伞备着。反正闲着也是闲着，晚饭后咱们一起去小区花园散散步，再听一段越剧放松放松吧。",
+    "provider": "mock",
+    "runs": [
+      {
+        "index": 0,
+        "sentences": 3,
+        "first_ms": 16.03,
+        "total_ms": 52.17
+      },
+      {
+        "index": 1,
+        "sentences": 3,
+        "first_ms": 15.61,
+        "total_ms": 52.72
+      },
+      {
+        "index": 2,
+        "sentences": 3,
+        "first_ms": 15.41,
+        "total_ms": 57.36
+      },
+      {
+        "index": 3,
+        "sentences": 3,
+        "first_ms": 15.73,
+        "total_ms": 55.83
+      },
+      {
+        "index": 4,
+        "sentences": 3,
+        "first_ms": 16.58,
+        "total_ms": 52.76
+      }
+    ]
+  }
+}

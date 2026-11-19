@@ -1,0 +1,85 @@
+# ============================================================================
+# 安语（Anyu）· 构建上下文裁剪（迭代 10 · W1）
+# ----------------------------------------------------------------------------
+# 作用对象：仅 docker build 的**上下文**（不是镜像层），但两件事都由它决定——
+#   ① 密钥能不能进镜像：`.env` 一旦进上下文，Dockerfile 里任何一个 COPY . 就会把它
+#      带进层里，而层是删不掉的（docker history / docker save 都能捞）；
+#   ② 上下文体积与可复现性：.venv / node_modules / .git 让上下文从几十 MB 涨到几 GB。
+#
+# 匹配口径（与 Docker 一致）：后出现的规则覆盖先出现的规则；不含 `/` 的模式匹配
+# 任意层级的同名项；不含 `/` 的目录名一旦命中，其子项一并排除。
+# 本文件被 `scripts/check_image_secrets.py` 解析，二者必须保持同步——
+# 改动本文件后跑一遍该脚本（计划 §6.5-2 的反向验收就是拿它验的）。
+# ============================================================================
+
+# ---------- 1. 密钥与环境文件（硬红线）----------
+# `.env` 永不进上下文；`.env.example` 只有占位符，用 `!` 重新放行（容器内 `--env-file`
+# 由 compose 从宿主注入，不靠镜像携带）。
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+certs/
+.netrc
+.pgpass
+.npmrc
+.pypirc
+
+# ---------- 2. 虚拟环境 / 缓存 / 构建产物 ----------
+# 依赖在 builder 阶段用 uv 重装一份，宿主的 .venv 带进去只会覆盖成 Windows 二进制。
+.venv/
+.uv-cache/
+dist/
+build/
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.pytest-tmp/
+.probe/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.log
+
+# ---------- 3. 版本库 / 钩子 / IDE ----------
+.git/
+.gitignore
+.gitattributes
+.githooks/
+.idea/
+.vscode/
+
+# ---------- 4. 测试与评测数据 ----------
+# 后端镜像不跑测试；评测报告里有对话样本与长者画像，不进上下文。
+tests/
+eval/reports/*.jsonl
+eval/reports/*.md
+eval/fixtures/
+spikes/
+pytest-of-*/
+
+# ---------- 5. 前端（构建产物由 nginx 镜像托管，后端镜像不需要 node 侧）----------
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ---------- 6. 文档与静态媒体（大文件 / 与运行无关）----------
+docs/plans/
+static/media/
+static/mock/
+*.vrm
+*.glb
+*.onnx
+*.mp3
+*.mp4
+*.wav

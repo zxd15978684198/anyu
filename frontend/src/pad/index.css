@@ -1,0 +1,772 @@
+@import "tailwindcss" source(none);
+/* pad 是 Tailwind 主用户：只扫本端，避免把 console/family/portal 的类名也算进来。 */
+@source "./**/*.tsx";
+@source "./**/*.ts";
+@import "../theme/tokens.css";
+/* 三端共享 UI 原语。pad 的 --pad-* 版面令牌与八档断点在后面定义，优先级不受影响。 */
+@import "../shared/ui/primitives.css";
+
+/* pad 基座：1920×1080 全屏演示（PRD §2.1），禁选中防长者误触拖蓝
+   全端浅底低饱和（P2 藤紫，tokens.css 冻结口径）；无深色块、无深色模式。
+   底纹只用既有 token 叠一层极浅的纵向渐变，让大面积留白不显得「页面空了」。 */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family:
+    "PingFang SC",
+    "Microsoft YaHei",
+    system-ui,
+    sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+body {
+  background-image: linear-gradient(
+    180deg,
+    var(--color-surface-sunken) 0%,
+    var(--color-canvas) 38%,
+    var(--color-canvas) 100%
+  );
+}
+
+/* ---------- 降级形象：没有 WebGL 时的「呼吸感」 ----------
+   无 3D 能力时只剩一张静态照片，看着像卡死；这里给一点极轻的呼吸与摆动，
+   让长者端知道画面是活的（不是要拿它冒充 3D，只是别让人以为页面挂了）。
+   用 transform + opacity，不触发重排；prefers-reduced-motion 时全部关掉。 */
+@keyframes avatar-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-1.2%) scale(1.012);
+  }
+}
+
+.avatar-breathe {
+  animation: avatar-breathe 4.6s ease-in-out infinite;
+  transform-origin: 50% 85%;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-breathe,
+  [data-testid="subtitle-history"] > p {
+    animation: none;
+  }
+}
+
+/* =====================================================================
+   多端适配令牌 —— 长者端版面的**唯一**开关
+   ---------------------------------------------------------------------
+   版面是一条竖着分的账：顶栏 + 中部(3D | 字幕) + 底栏 = 100vh。任何一档改动
+   都是几个数一起变，写在组件里必然互相打架，所以预算只放这一处，组件只消费
+   语义变量，断点逻辑全局唯一。
+
+   三条不许突破的下限：① 正文 ≥20px；② 触控 ≥48px；③ 3D 盒必须是正方形。
+
+   顶栏/底栏的**真实**高度由 App 的 ResizeObserver 实测后写回
+   `--pad-header-h` / `--pad-footer-h-real`（见 layoutBands.ts）。这里的默认值
+   只负责「登录页 → 主界面」那一瞬间画布不跳；实测值一到就以实测为准。
+   2026-11-11 之前这两个数是手填的：T 档填 88 实测 64、P 档填 64 实测 114，
+   数字人层因此整体错位 24–50px。现在每档的默认值 = CDP 实测值
+   （`.tmp/adhoc-20261111/measure.mjs` 12 档），改版面后必须重量一次再回填，
+   `frontend/tests/pad-tiers.test.ts` 会把对不上的档判红。
+   ===================================================================== */
+:root {
+  /* --- 布局骨架（App.tsx 消费） --- */
+  --pad-gutter-x: 2.5rem;
+  --pad-header-pt: 0.75rem;
+  --pad-header-h: 84px;
+  --pad-footer-h-real: 161px;
+  --pad-footer-h: 150px;
+  /* 右栏加宽会同时收窄左栏，数字人与按住说话的中心随之左移（两者同轴）。
+     2026-11-16：32vw/760 → 38vw/880，左组再左移约 58px（1920 基线）。 */
+  --pad-subtitle-w: clamp(420px, 38vw, 880px);
+  --pad-drawer-reserve: 620px;
+  --pad-footer-reserve: 1010px;
+  --pad-drawer-gap: 40px;
+
+  /* --- 中部排布：row = 3D 与字幕并排；column = 上下堆叠 --- */
+  --pad-main-dir: row;
+  /* 堆叠档里字幕带占多高（并排档用不到，置 0 以免进 calc 出错） */
+  --pad-subtitle-band-h: 0px;
+
+  /* --- 3D 舞台几何（AvatarLayer 消费；四条边都走变量，断点只改这里） --- */
+  --pad-stage-top: var(--pad-header-h);
+  --pad-stage-bottom: var(--pad-footer-h-real);
+  --pad-stage-left: 0px;
+  --pad-stage-right: var(--pad-subtitle-w);
+  /* 整页封顶居中后左右让出的空白：数字人层是 fixed（相对视口），
+     不补这一项就会比舞台左偏一个居中量（2560 上实测偏 80px）。 */
+  --pad-shell-inset: 0px;
+  --pad-avatar-max: 760px;
+  /* 隐藏用 opacity 不用 display：卸载 / display:none 会断掉 avatar_ready 上报，
+     服务端开场白要等满 5s。P/PV 档置 0，舞台仍在跑。 */
+  --pad-avatar-opacity: 1;
+
+  /* --- 抽屉 --- */
+  --pad-drawer-w: 960px;
+  --pad-drawer-maxw: 60vw;
+  --pad-drawer-maxh: 660px;
+  --pad-drawer-pad: 2rem;
+  --pad-drawer-title: 3rem;
+
+  /* --- 字幕（BigSubtitle 消费；档位判定在组件里，这里只给字号） --- */
+  --pad-subtitle-max: 1600px;
+  --pad-subtitle-min: 0px; /* D 档不设下限；T/P 档由 @media 抬起来 */
+  --pad-subtitle-prev: 1.625rem; /* 26 */
+  --pad-subtitle-lg: 3.75rem; /* 60，短句 */
+  --pad-subtitle-md: 3rem; /* 48，中句 */
+  --pad-subtitle-sm: 2.25rem; /* 36，长句 */
+
+  /* --- 待机面板（StandbyPanel 消费：一句「我在」+ 四个常问句） --- */
+  --pad-ask-h: 4.5rem; /* 72 */
+  --pad-ask-text: 1.75rem; /* 28 */
+  --pad-ask-title: 1.875rem; /* 30 */
+
+  /* --- 顶栏状态条 --- */
+  --pad-status-gap: 1rem;
+  --pad-status-h: 3.5rem; /* 56，触控下限 */
+  --pad-status-px: 1.5rem;
+  --pad-status-text: 1.5rem; /* 24 */
+
+  /* --- SOS（FR-ALT-06 常显大按钮；任何档都比邻座按钮大） --- */
+  --pad-sos-h: 4rem; /* 64 */
+  --pad-sos-px: 2rem;
+  --pad-sos-text: 1.875rem;
+  --pad-sos-icon: 2.25rem;
+
+  /* --- 底栏按住说话 --- */
+  --pad-talk-h: 4rem;
+  --pad-talk-px: 2.5rem;
+  --pad-talk-py: 1.25rem;
+  --pad-talk-text: 2.25rem;
+  --pad-hint: 1.375rem; /* 22 */
+
+  /* --- 今日用药卡（2026-11-11 起随字幕栏走，不再压在数字人腿上） --- */
+  --pad-med-w: 100%;
+  --pad-med-time-w: 74px;
+  --pad-med-title: 1.75rem; /* 28 */
+  --pad-med-text: 1.625rem; /* 26 */
+
+  /* --- 登录页 --- */
+  --pad-login-w: 720px;
+  --pad-login-h1: 3.75rem;
+  --pad-login-gap: 2rem;
+  --pad-login-text: 1.5rem; /* 24，标签与引导正文 */
+  --pad-login-note: 1.25rem; /* 20，说明小字（正文下限） */
+  --pad-login-field-h: 4rem; /* 64，输入框 */
+  --pad-login-btn-h: 5rem; /* 80，主按钮 */
+  --pad-login-sub-h: 4rem; /* 64，次按钮 */
+}
+
+/* ---------- 中部排布与舞台底纹 ----------
+   舞台底纹是一层「聚光」：只用 brand-soft 这一个既有 token 做径向渐变，
+   不引新色相（tokens.css 的藤紫口径是冻结的）。没有它，降级静态头像就是
+   一片纯白上漂着个灰影，看着像加载失败。 */
+#root main {
+  flex-direction: var(--pad-main-dir);
+}
+
+.pad-stage {
+  /* 两层：脚下一点接触阴影 + 原来的聚光。
+     2026-11-13 反馈「数字人像蒙了一层白雾」：白衣服压在近白底上，轮廓与地面都消失，
+     看着像浮在雾里。阴影只给「站在地上」的暗示，不改聚光本身的亮色（藤紫口径冻结）。
+     这层必须是**背景**：数字人层已抬到 z-10（AvatarLayer），渐变才会落在人背后；
+     两件都留在 z-0 时，淡紫聚光会整块盖在画布上，那才是「白雾」。 */
+  background:
+    radial-gradient(ellipse 34% 7% at 50% 93%, rgba(45, 48, 45, 0.16), transparent 72%),
+    radial-gradient(ellipse 62% 58% at 50% 44%, var(--color-brand-soft) 0%, transparent 76%);
+}
+
+/* ---------- 底栏两栏与中部同轴 ----------
+   左栏 = 3D 舞台列（按住说话居中 → 与数字人同一垂线）；
+   右栏 = 字幕栏宽（子元素再让出同一个右槽 → 打字框与字幕卡等宽同轴）。
+   两栏宽度由同一个 --pad-subtitle-w 推出，改断点只需改这一处。 */
+.pad-entry-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--pad-subtitle-w);
+  align-items: start;
+  column-gap: 0;
+}
+
+.pad-entry-talk {
+  width: 100%;
+  max-width: var(--pad-avatar-max);
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}
+
+.pad-entry-text {
+  min-width: 0;
+  padding-right: var(--pad-gutter-x);
+}
+
+/* 堆叠档（P/TP：字幕在下方、3D 让位）没有左右两栏可对轴，退回等宽两栏。 */
+@media (max-width: 1023px), (max-height: 520px) {
+  .pad-entry-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 2rem;
+    padding-inline: 1.5rem;
+  }
+
+  .pad-entry-talk {
+    max-width: none;
+    padding-inline: 0;
+  }
+
+  .pad-entry-text {
+    padding-right: 0;
+  }
+}
+
+/* 任务抽屉在窄屏打开时底栏只剩几百像素：两栏改上下，避免输入框被压成一条缝。 */
+@media (max-width: 1439px) {
+  .pad-entry-grid.pad-entry-stack {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0.75rem;
+  }
+
+  .pad-entry-grid.pad-entry-stack .pad-entry-talk {
+    max-width: none;
+  }
+
+  .pad-entry-grid.pad-entry-stack .pad-entry-text {
+    padding-right: 0;
+  }
+}
+
+/* 字幕滚动区：当前句不截断、长回复在区内滚动。滚动条要看得见但别抢戏。 */
+.pad-transcript {
+  /* 长回复在区内滚：没有 overflow 时内容是被 flex 压扁的，不是可滚的 */
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-brand-line) transparent;
+}
+
+.pad-transcript::-webkit-scrollbar {
+  width: 10px;
+}
+
+.pad-transcript::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pad-transcript::-webkit-scrollbar-thumb {
+  background: var(--color-brand-line);
+  border-radius: 999px;
+}
+
+/* 上文入场：新的一句沉进历史时轻微上浮，让「刚才那句去哪了」有迹可循。 */
+@keyframes pad-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[data-testid="subtitle-history"] > p {
+  animation: pad-line-in 260ms ease-out both;
+}
+
+/* ---------- 矮屏档：够宽但不够高（1536×702 @125% 缩放） ----------
+   只按宽度分档时这类窗口会被判成「桌面」，三带吃掉全部高度，3D 等于看不见。
+   只对 width ≥1440 生效；T/P 档仍按各自的宽度规则走，互不覆盖。 */
+@media (min-width: 1440px) and (max-height: 860px) {
+  :root {
+    --pad-gutter-x: 1.75rem;
+    --pad-header-pt: 0.5rem;
+    --pad-header-h: 80px;
+    --pad-footer-h-real: 161px;
+    --pad-footer-h: 140px;
+    --pad-subtitle-w: clamp(400px, 30vw, 620px);
+    --pad-talk-h: 3.5rem;
+    --pad-talk-py: 1rem;
+    --pad-talk-text: 1.75rem;
+    --pad-hint: 1.25rem;
+    --pad-avatar-max: 560px;
+    --pad-subtitle-lg: 3rem; /* 48 */
+    --pad-subtitle-md: 2.5rem; /* 40 */
+    --pad-subtitle-sm: 2rem; /* 32 */
+    --pad-subtitle-prev: 1.375rem;
+    --pad-drawer-maxh: 600px;
+    --pad-ask-h: 3.5rem;
+    --pad-ask-text: 1.375rem;
+    --pad-ask-title: 1.5rem;
+  }
+}
+
+/* ---------- T 档：平板横屏 / 小桌面 1024–1439 ----------
+   代表 1024×768 / 1180×820。顶栏把「唤醒词 / 录入声纹」收进「设置」弹层
+   （见下方 .pad-wide-only / .pad-compact-only），首屏只留三个按钮。 */
+@media (max-width: 1439px) {
+  :root {
+    --pad-gutter-x: 1.5rem;
+    --pad-header-pt: 0.5rem;
+    --pad-sos-h: 3rem; /* 48 = 触控下限，不再降 */
+    --pad-sos-px: 1rem;
+    --pad-sos-text: 1.25rem; /* 20 = 正文下限 */
+    --pad-sos-icon: 1.5rem;
+    --pad-status-gap: 0.5rem;
+    --pad-status-h: 3rem; /* 48 */
+    --pad-status-px: 0.5rem;
+    --pad-status-text: 1.25rem; /* 20 */
+    --pad-header-h: 64px;
+    --pad-footer-h-real: 140px;
+    --pad-footer-h: 136px;
+    --pad-subtitle-w: clamp(340px, 36vw, 520px);
+    --pad-avatar-max: 520px;
+    --pad-drawer-w: 600px;
+    --pad-drawer-maxw: 60vw;
+    --pad-drawer-maxh: 620px;
+    /* 抽屉 600 + 让位间隙 40：底栏内容必须让到抽屉左缘，否则会挤成一条竖线 */
+    --pad-drawer-reserve: 640px;
+    --pad-footer-reserve: 640px;
+    --pad-drawer-pad: 1.5rem;
+    --pad-drawer-title: 2.5rem;
+    --pad-subtitle-max: 1200px;
+    /* 字幕卡最小高（T 档）：右栏窄了以后顶栏那句「谁在说话」会被 flex 压掉 */
+    --pad-subtitle-min: 240px;
+    --pad-subtitle-prev: 1.375rem;
+    --pad-subtitle-lg: 3rem; /* 48 */
+    --pad-subtitle-md: 2.25rem; /* 36 */
+    --pad-subtitle-sm: 1.875rem; /* 30 */
+    --pad-talk-h: 3.5rem;
+    --pad-talk-px: 1.5rem;
+    --pad-talk-py: 0.875rem;
+    --pad-talk-text: 1.875rem;
+    --pad-hint: 1.25rem;
+    --pad-med-time-w: 64px;
+    --pad-med-title: 1.5rem;
+    --pad-med-text: 1.375rem; /* 22 */
+    --pad-ask-h: 3.5rem; /* 56 */
+    --pad-ask-text: 1.375rem; /* 22 */
+    --pad-ask-title: 1.5rem; /* 24 */
+  }
+
+  /* 抽屉让位后底栏只剩 384px：发送按钮的 px-8/min-w-32 会顶出边界，
+     收到 48 高 + 20px 字（触控与字号下限都不破） */
+  #root footer [data-testid="text-fallback-send"] {
+    min-width: 3.5rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    font-size: 1.25rem;
+  }
+
+  /* 让位后输入框只剩几十像素：把 px-6/28px 收到能放下一行字 */
+  #root footer textarea {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    font-size: 1.375rem;
+  }
+}
+
+/* ---------- D2 档：小笔记本 1200–1439 且够高（1280×800 / 1366×768） ----------
+   T 档按「平板横屏」压三带，但这类窗口高度有 768–800，压完中部反而空出一大块。
+   这里把字幕栏放宽、字号回升一档，3D 也拿回一点高度。放在 T 之后覆盖它。 */
+@media (min-width: 1200px) and (max-width: 1439px) and (min-height: 700px) {
+  :root {
+    --pad-subtitle-w: clamp(380px, 32vw, 560px);
+    --pad-avatar-max: 600px;
+    --pad-subtitle-lg: 3.25rem; /* 52 */
+    --pad-subtitle-md: 2.5rem; /* 40 */
+    --pad-subtitle-sm: 2rem; /* 32 */
+    --pad-footer-h-real: 146px;
+    --pad-footer-h: 142px;
+  }
+}
+
+/* ---------- P 档：手机横屏 / 任何超矮窗口（≤1023 或高 ≤520） ----------
+   代表 932×430 / 844×390 / 667×375。3D 让位（opacity 0，**不卸载**），
+   主角变成「大字幕 + 按住说话」。改成上下堆叠：横屏手机宽度够但高度只有
+   375–430，并排会把字幕挤成一条竖线。字号仍守 20px / 48px 两条下限。 */
+@media (max-width: 1023px), (max-height: 520px) {
+  :root {
+    --pad-gutter-x: 1rem;
+    --pad-header-pt: 0.25rem;
+    --pad-sos-h: 3rem; /* 48 = 触控下限 */
+    --pad-sos-px: 1rem;
+    --pad-sos-text: 1.25rem; /* 20 */
+    --pad-sos-icon: 1.75rem;
+    --pad-status-gap: 0.5rem;
+    --pad-status-h: 3rem; /* 48 = 下限，不再降 */
+    --pad-status-px: 0.5rem;
+    --pad-status-text: 1.25rem; /* 20 = 下限 */
+    --pad-header-h: 114px;
+    --pad-footer-h-real: 132px;
+    --pad-footer-h: 128px;
+    --pad-main-dir: column;
+    --pad-subtitle-w: 100%;
+    --pad-subtitle-band-h: 168px;
+    /* 字幕卡最小高（P 档）：整条字幕带只有 168px，卡再被压就只剩一句 */
+    --pad-subtitle-min: 150px;
+    --pad-stage-right: 0px;
+    --pad-stage-bottom: calc(var(--pad-footer-h-real) + var(--pad-subtitle-band-h));
+    --pad-avatar-max: 0px;
+    --pad-avatar-opacity: 0;
+    --pad-drawer-w: 100vw;
+    --pad-drawer-maxw: 100vw;
+    --pad-drawer-maxh: 100vh;
+    --pad-drawer-reserve: 0px;
+    --pad-footer-reserve: 0px;
+    --pad-drawer-gap: 0.5rem;
+    --pad-drawer-pad: 1.25rem;
+    --pad-drawer-title: 2.25rem;
+    --pad-subtitle-max: 100%;
+    --pad-subtitle-prev: 1.25rem;
+    --pad-subtitle-lg: 2.25rem; /* 36 */
+    --pad-subtitle-md: 1.875rem; /* 30 */
+    --pad-subtitle-sm: 1.5rem; /* 24 */
+    --pad-talk-h: 3rem; /* 48 */
+    --pad-talk-px: 1rem;
+    --pad-talk-py: 0.5rem;
+    --pad-talk-text: 1.5rem;
+    --pad-hint: 1.25rem;
+    --pad-med-time-w: 56px;
+    --pad-med-title: 1.25rem;
+    --pad-med-text: 1.25rem;
+    --pad-ask-h: 3rem; /* 48 = 触控下限 */
+    --pad-ask-text: 1.25rem; /* 20 = 正文下限 */
+    --pad-ask-title: 1.375rem; /* 22 */
+    --pad-login-h1: 3rem;
+    --pad-login-gap: 1rem;
+  }
+
+  /* 堆叠档：字幕带定高，3D 让出的高度全给它；左栏（舞台占位）收成 0。 */
+  #root main > div:first-child {
+    flex: 0 0 0px;
+    min-height: 0;
+  }
+
+  #root main section[aria-live] {
+    height: var(--pad-subtitle-band-h);
+    flex: 0 0 auto;
+  }
+
+  /* 横屏手机字幕带只有 168px：四个常问句排成一行、去掉说明副行。
+     标题 29 + 间距 20 + 按钮 48 = 97，一眼看全四个，不必在带子里滚。 */
+  #root [data-testid="standby-panel"] > div:first-child > p:last-child {
+    display: none;
+  }
+
+  #root [data-testid="standby-panel"] > div:last-child {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ---------- TP 档：平板竖屏 601–1023（768×1024 / 820×1180） ----------
+   2026-11-11 之前这一档被「请横屏」整屏挡住（#root display:none），
+   等于平板竖着拿就打不开——那是不适配，不是适配。
+   竖屏高度充裕：3D 留在上半，字幕带在下半，字号不必降到手机档。 */
+@media (min-width: 601px) and (max-width: 1023px) and (orientation: portrait) {
+  :root {
+    --pad-header-h: 114px;
+    --pad-footer-h-real: 148px;
+    --pad-footer-h: 144px;
+    --pad-subtitle-band-h: 320px;
+    --pad-avatar-max: 460px;
+    --pad-avatar-opacity: 1;
+    --pad-subtitle-prev: 1.5rem;
+    --pad-subtitle-lg: 2.75rem; /* 44 */
+    --pad-subtitle-md: 2.25rem; /* 36 */
+    --pad-subtitle-sm: 1.875rem; /* 30 */
+    --pad-talk-text: 1.75rem;
+    --pad-med-text: 1.375rem;
+    --pad-ask-h: 3.5rem;
+    --pad-ask-text: 1.375rem;
+    --pad-ask-title: 1.5rem;
+  }
+
+  #root main > div:first-child {
+    flex: 1 1 auto;
+  }
+
+  /* 竖屏平板字幕带有 320px，说明副行放得回来 */
+  #root [data-testid="standby-panel"] > div:first-child > p:last-child {
+    display: block;
+  }
+}
+
+/* ---------- PV 档：手机竖屏 ≤600（375×667 / 430×932） ----------
+   同样不再挡「请横屏」：单列、字幕吃满剩余高度、入口在下，3D 隐去但不卸载。
+   字号与触控仍守 20px / 48px 两条下限——这是「适配」而不是「缩小」。 */
+@media (max-width: 600px) and (orientation: portrait) {
+  :root {
+    --pad-gutter-x: 0.75rem;
+    --pad-header-h: 170px;
+    --pad-footer-h-real: 168px;
+    --pad-footer-h: 164px;
+    --pad-subtitle-band-h: 0px;
+    --pad-subtitle-lg: 2rem; /* 32 */
+    --pad-subtitle-md: 1.75rem; /* 28 */
+    --pad-subtitle-sm: 1.5rem; /* 24 */
+    --pad-subtitle-prev: 1.25rem;
+    --pad-talk-h: 3.5rem;
+    --pad-talk-text: 1.625rem;
+    --pad-hint: 1.25rem;
+    --pad-ask-h: 3.5rem; /* 56 */
+    --pad-ask-text: 1.375rem; /* 22 */
+    --pad-ask-title: 1.5rem; /* 24 */
+    --pad-login-w: 100%;
+    --pad-login-h1: 2.5rem;
+  }
+
+  /* 375px 上四列每格只有 84px，七个字放不下：回到两列两行 */
+  #root [data-testid="standby-panel"] > div:last-child {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* 竖屏手机高度金贵：字幕吃掉舞台让出的全部剩余高度，不再定高。 */
+  #root main section[aria-live] {
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  /* 两个降级入口上下排：375px 宽并排会把输入框压到 100px 出头。 */
+  #root footer [data-testid="fallback-entries"] {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  #root footer [data-testid="fallback-talk-hint"],
+  #root footer [data-testid="fallback-text-hint"] {
+    display: none;
+  }
+}
+
+/* PV 顶栏取舍：375px 一行放不下「用药提醒 104 + 求助 148 + 设置 64 + 退出 96 + 间距 24 = 436」。
+   「退出登录」是自检入口不是长者动作，收进「设置」弹层（.pad-pv-only），
+   首屏留三个按钮共 332px，正好放得下；顺带把弹层右缘拉回屏内（原来左溢出 5px）。 */
+.pad-pv-only {
+  display: none;
+}
+
+@media (max-width: 600px) and (orientation: portrait) {
+  .pad-pv-hide {
+    display: none !important;
+  }
+
+  .pad-pv-only {
+    display: flex;
+  }
+}
+
+/* ---------- 超宽档：≥2200（2560×1440 / 带鱼屏） ----------
+   不封顶的话 3D 盒仍卡在 760，中间空出一大片。这里放宽上限并给整页封顶居中。 */
+@media (min-width: 2200px) {
+  :root {
+    --pad-avatar-max: 900px;
+    --pad-subtitle-w: clamp(560px, 26vw, 860px);
+    --pad-subtitle-lg: 4.25rem; /* 68 */
+    --pad-subtitle-md: 3.5rem; /* 56 */
+    --pad-subtitle-sm: 2.75rem; /* 44 */
+    --pad-shell-inset: max(0px, calc((100vw - 2400px) / 2));
+  }
+
+  #root > div {
+    max-width: 2400px;
+    margin-inline: auto;
+  }
+}
+
+/* 顶栏收纳（2026-11-11 第二轮）：T/P 档把「唤醒词 / 录入声纹」收进「设置」弹层
+   （App.tsx 顶栏里的原生 <details>），首屏只留「用药提醒 + 一键求助 + 退出登录」。
+   为什么改成类而不是第一轮的 `button:nth-child(n)`：`录入声纹` 是条件渲染的
+   （showEnrollEntry 由声纹状态决定），nth-child 会跟着漂移，第一轮就误伤过邻座按钮。
+   D 档**不声明** display（.pad-wide-only 只在窄屏出现），按钮保持原生盒模型，
+   1920×1080 的顶栏与改前逐像素一致。 */
+.pad-compact-only {
+  display: none;
+}
+
+@media (max-width: 1439px) {
+  .pad-wide-only {
+    display: none !important;
+  }
+
+  .pad-compact-only {
+    display: flex;
+  }
+}
+
+/* ---------- 顶栏按钮 / 降级入口：T/P 档的收口 ----------
+   D 档数值与改前逐像素一致（56 高、24px 正文、左右 24px）；窄屏统一收到 48 高、20px、
+   左右 12~16px —— 正好压在两条长者下限上（触控 ≥48px、正文 ≥20px），再小就是破线。 */
+.pad-header-btn {
+  min-height: 3.5rem;
+  padding: 0 1.5rem;
+  font-size: 1.5rem;
+  /* 不许折行：375px 上「用药提醒」会断成「用药 / 提醒」两行，顶栏因此长高 14px，
+     而且四个字竖着排长者根本读不成词。宁可让整行换行，也不让词内断字。 */
+  white-space: nowrap;
+}
+
+/* 「退出登录」原本靠 py-4 撑出 62px，这里改成显式高度，避免窄屏 padding 一收就掉到 30px */
+.pad-header-quiet {
+  min-height: 3.5rem;
+  padding: 0 1.25rem;
+  font-size: 1.25rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 1439px) {
+  .pad-header-btn {
+    min-height: 3rem;
+    padding: 0 0.75rem;
+    font-size: 1.25rem;
+  }
+
+  .pad-header-quiet {
+    min-height: 3rem;
+    padding: 0 0.5rem;
+  }
+
+  /* 两条常驻提示在窄屏只剩噪音：说明文字占两行、把控件顶出屏外，而同样的信息
+     控件自身的状态文案里已有（HoldToTalk/TextFallback 内部）。1024×768 实测：
+     藏掉这两行，底栏可从 206px 回到 160px 以下。 */
+  #root footer [data-testid="fallback-talk-hint"],
+  #root footer [data-testid="fallback-text-hint"] {
+    display: none;
+  }
+}
+
+/* P 档顶栏必然两行：667px 装不下「三枚胶囊 + 四个按钮」（单行约 990px）。
+   第一行状态、第二行操作；胶囊与按钮各自都能在一行内放下（470 / 472 实测）。 */
+@media (max-width: 1023px), (max-height: 520px) {
+  #root header {
+    flex-wrap: wrap;
+    row-gap: 0.375rem;
+  }
+
+  #root header > div:last-child {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  /* 发送按钮的 px-8/min-w-32 在 384px 宽的半栏里会顶出抽屉边界：
+     收到 48 高 + 20px 字，仍守住触控下限 */
+  #root footer [data-testid="text-fallback-send"] {
+    min-width: 5rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    font-size: 1.25rem;
+  }
+
+  /* pb-4 在 375 高的屏上就是「发送按钮被切掉 16px」：留 4px 收口 */
+  #root footer {
+    padding-bottom: 0.25rem;
+  }
+
+  /* 输入框在两行占位符时会长到 88px：P 档钉成一行 48px（触控下限），
+     多出来的提示由 aria-live 字幕带承担 */
+  #root footer textarea {
+    height: 3rem;
+    min-height: 3rem;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+}
+
+/* 手机浏览器地址栏会吃掉 vh：能拿到 dvh 就用 dvh，否则退回 100%。 */
+@supports (height: 100dvh) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
+}
+
+/* ---------- 登录页矮屏收口（2026-11-11 B8 复测补） ----------
+   登录页原来是 `h-full flex-col justify-center`：内容比视口高时 flex 子项被压缩
+   （实测「登录」80px → 36px、「填入演示账号」64px → 36px，双双破 48px 触控下限），
+   justify-center 又把溢出的一半顶到屏幕外（1536×702 上 h1 y=-4、末行提示 y=650）。
+   组件已改成「外层滚动 + 内层 min-h-full 居中」，这里再按高度把尺寸收一档，
+   让常见矮屏**不用滚动**就装得下。两条长者下限照旧：正文 ≥20px、触控 ≥48px。
+   这不是新设备档，是跨档的登录页覆盖，所以放在所有设备档之后。 */
+@media (max-height: 860px) {
+  :root {
+    --pad-login-h1: 2.5rem; /* 40 */
+    --pad-login-gap: 0.75rem; /* 12 */
+    --pad-login-text: 1.25rem; /* 20 = 正文下限 */
+    --pad-login-note: 1.25rem; /* 20 */
+    --pad-login-field-h: 3.5rem; /* 56 */
+    --pad-login-btn-h: 3.5rem; /* 56 */
+    --pad-login-sub-h: 3rem; /* 48 = 触控下限 */
+  }
+}
+
+/* 横屏手机 / 矮窗口（932×430、667×375）：单列 8 块在 430px 里怎么收都溢出，
+   改成左右两列——左列「编号 + 密钥 + 登录」，右列「演示账号 + 声纹」。
+   两列都是原来那一列里的连续块，DOM 顺序不变，读屏顺序也不变。 */
+@media (max-height: 560px) and (orientation: landscape) {
+  :root {
+    --pad-login-h1: 2rem; /* 32 */
+    --pad-login-gap: 0.5rem; /* 8 */
+  }
+
+  #root > form > .pad-login {
+    flex-direction: row;
+    align-items: center;
+    column-gap: 2rem;
+  }
+
+  #root > form > .pad-login > .pad-login-col {
+    flex: 1 1 0;
+  }
+}
+
+/* ---------- T/P 档版式收口（S7-批三，2026-11-13） ----------
+   三处只在中窄档生效，D 档（1920）**基线一律不动**：
+   1) 今日用药摘要 `.pad-med-summary`：T 档 20px、只留两行；P 档 18px。D 档由组件
+      自己的排版负责，这里不写基线规则——写了就等于 1920 上也改字号。
+   2) 右栏字幕卡最小高 `--pad-subtitle-min`：T 240px / P 150px。D 档基线 0，等于没有。
+   3) 发送按钮 `.pad-send-btn`：「发送中…」在窄栏里不换行、不缩到 48px 触控宽以下。
+   T 档查询带上 `(max-height: 520px)`，因为 P 档本身就是「≤1023 宽 **或** ≤520 高」
+   ——横屏手机宽度可能 >1439，只看宽度会漏。 */
+@media (max-width: 1439px), (max-height: 520px) {
+  .pad-med-summary {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    font-size: 1.25rem; /* 20 = 正文下限 */
+    line-height: 1.35;
+  }
+
+  .pad-send-btn {
+    min-width: 5.5rem;
+    white-space: nowrap;
+  }
+
+  /* 字幕卡（App.tsx 已挂 `.pad-subtitle-card`）：窄档给它一个最小高，
+     免得顶栏那句「谁在说话」被 flex 压掉。下限值不住在这里——它是档位令牌，
+     落在各档 :root（档位扫描器只认那 10 块）。 */
+  .pad-subtitle-card {
+    min-height: var(--pad-subtitle-min);
+  }
+}
+
+@media (max-width: 1023px), (max-height: 520px) {
+  .pad-med-summary {
+    font-size: 1.125rem; /* 18 */
+  }
+
+  /* P 档三枚胶囊（连接/身份/播放）竖着叠会吃掉整条 168px 字幕带：
+     只留第一枚（连接），其余按**结构**隐藏——不认文案，读屏仍读得到 aria-label。 */
+  [role="status"] > [role="group"]:nth-child(n + 2) {
+    display: none;
+  }
+}

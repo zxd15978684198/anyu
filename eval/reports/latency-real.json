@@ -1,0 +1,270 @@
+{
+  "summary": {
+    "runs": 20,
+    "reply_ms": {
+      "p50": 2552.3,
+      "p95": 7237.0,
+      "max": 8328.5
+    },
+    "tts_ms": {
+      "p50": 1000.2,
+      "p95": 1019.3,
+      "max": 1020.0
+    },
+    "total_ms": {
+      "p50": 3548.9,
+      "p95": 8236.4,
+      "max": 9338.9
+    },
+    "degraded_runs": 3,
+    "tts_timeout_runs": 20,
+    "tool_call_runs": 4,
+    "tool_calls_total": 4,
+    "error_runs": 0,
+    "within_budget": "0/20",
+    "budget_ms": 1500.0,
+    "note": "服务端回复侧（③→⑤）；不含 ① 唤醒、② 真 ASR、⑥ 前端播放，不得外推生产 P95"
+  },
+  "rows": [
+    {
+      "index": 1,
+      "question": "今天天气怎么样？",
+      "reply_ms": 2586.5,
+      "tts_ms": 1000.2,
+      "total_ms": 3586.7,
+      "degraded": false,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 2,
+      "question": "外面下雨了吗？",
+      "reply_ms": 2455.1,
+      "tts_ms": 1006.8,
+      "total_ms": 3461.9,
+      "degraded": false,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 3,
+      "question": "今天适合出去散步吗？",
+      "reply_ms": 3014.3,
+      "tts_ms": 995.7,
+      "total_ms": 4010.0,
+      "degraded": true,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 4,
+      "question": "杭州今天冷不冷？",
+      "reply_ms": 8328.5,
+      "tts_ms": 1010.3,
+      "total_ms": 9338.9,
+      "degraded": false,
+      "tool_calls": 1,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 5,
+      "question": "明天天气好不好？",
+      "reply_ms": 2213.8,
+      "tts_ms": 1010.3,
+      "total_ms": 3224.1,
+      "degraded": false,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 6,
+      "question": "现在外面风大不大？",
+      "reply_ms": 2541.6,
+      "tts_ms": 1003.5,
+      "total_ms": 3545.1,
+      "degraded": false,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 7,
+      "question": "今天要带伞吗？",
+      "reply_ms": 2552.3,
+      "tts_ms": 996.6,
+      "total_ms": 3548.9,
+      "degraded": false,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 8,
+      "question": "今天最高气温多少度？",
+      "reply_ms": 2289.9,
+      "tts_ms": 985.1,
+      "total_ms": 3275.0,
+      "degraded": false,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 9,
+      "question": "上海今天天气如何？",
+      "reply_ms": 6542.0,
+      "tts_ms": 995.0,
+      "total_ms": 7537.0,
+      "degraded": false,
+      "tool_calls": 1,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 10,
+      "question": "晚上出门要多穿点吗？",
+      "reply_ms": 2608.7,
+      "tts_ms": 1019.3,
+      "total_ms": 3628.0,
+      "degraded": false,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 11,
+      "question": "今天天气怎么样？",
+      "reply_ms": 2313.2,
+      "tts_ms": 1008.8,
+      "total_ms": 3322.1,
+      "degraded": false,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 12,
+      "question": "外面下雨了吗？",
+      "reply_ms": 3025.9,
+      "tts_ms": 996.3,
+      "total_ms": 4022.3,
+      "degraded": true,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 13,
+      "question": "今天适合出去散步吗？",
+      "reply_ms": 3019.7,
+      "tts_ms": 1014.8,
+      "total_ms": 4034.5,
+      "degraded": true,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 14,
+      "question": "杭州今天冷不冷？",
+      "reply_ms": 7237.0,
+      "tts_ms": 999.4,
+      "total_ms": 8236.4,
+      "degraded": false,
+      "tool_calls": 1,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 15,
+      "question": "明天天气好不好？",
+      "reply_ms": 2736.1,
+      "tts_ms": 994.0,
+      "total_ms": 3730.1,
+      "degraded": false,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 16,
+      "question": "现在外面风大不大？",
+      "reply_ms": 2364.9,
+      "tts_ms": 997.6,
+      "total_ms": 3362.4,
+      "degraded": false,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 17,
+      "question": "今天要带伞吗？",
+      "reply_ms": 2387.9,
+      "tts_ms": 1012.3,
+      "total_ms": 3400.2,
+      "degraded": false,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 18,
+      "question": "今天最高气温多少度？",
+      "reply_ms": 2280.1,
+      "tts_ms": 1000.1,
+      "total_ms": 3280.2,
+      "degraded": false,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 19,
+      "question": "上海今天天气如何？",
+      "reply_ms": 5935.3,
+      "tts_ms": 1020.0,
+      "total_ms": 6955.3,
+      "degraded": false,
+      "tool_calls": 1,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    },
+    {
+      "index": 20,
+      "question": "晚上出门要多穿点吗？",
+      "reply_ms": 2345.6,
+      "tts_ms": 1010.2,
+      "total_ms": 3355.7,
+      "degraded": false,
+      "tool_calls": 0,
+      "tts_ok": false,
+      "tts_timeout_ms": 1000.0,
+      "error": ""
+    }
+  ]
+}

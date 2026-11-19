@@ -1,0 +1,1 @@
+{"files":[{"filename":"/decoder.onnx","start":0,"end":759829},{"filename":"/encoder.onnx","start":759829,"end":12736101},{"filename":"/joiner.onnx","start":12736101,"end":13074255},{"filename":"/tokens.txt","start":13074255,"end":13076183}],"remote_package_size":13076183}

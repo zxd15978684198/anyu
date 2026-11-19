@@ -1,0 +1,134 @@
+#!/bin/sh
+# push 前跑两道门禁（迭代 10 · W5）：
+#   1) 评测门禁 tests/eval_gate.py（迭代 9 遗留）：敏感召回与注入拦截率必须 100%
+#      —— 不进 CI 阶段表（S-D10-1），继续单独挂在这里；
+#   2) 全量 CI 八阶段 scripts/ci.py：lock / sync / lint / type / manifest / test /
+#      security / build，任一失败即中止 push。
+#
+# 启用一次即可（每个 clone 各来一次）：
+#     git config core.hooksPath .githooks
+# 注意：本仓库用 core.hooksPath 直接指向 .githooks，**不要**再 `prek install`。
+#
+# 想临时跳过（只在明确知道指标未达标、且已记账时用）：
+#     ANYU_SKIP_EVAL_GATE=1 git push     # 只跳过评测门禁
+#     ANYU_SKIP_CI=1 git push            # 只跳过八阶段 CI
+# 两个变量互不影响。
+#
+# 门禁失败时给出可复现命令，别让人对着「push 失败」猜。
+# 依赖 uv 的门禁一律用**绝对路径的 uv**启动（见 find_uv），不依赖 PATH。
+
+set -e
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+
+find_uv() {
+    if [ -n "${ANYU_UV:-}" ] && [ -x "$ANYU_UV" ]; then
+        printf '%s\n' "$ANYU_UV"
+        return 0
+    fi
+    for cand in "$root/.venv/Scripts/uv.exe" "$root/.venv/bin/uv"; do
+        if [ -x "$cand" ]; then
+            printf '%s\n' "$cand"
+            return 0
+        fi
+    done
+    if [ -f "$root/.venv/pyvenv.cfg" ]; then
+        home=$(sed -n 's/^home *= *//p' "$root/.venv/pyvenv.cfg" | tr -d '\r' | head -n 1)
+        if [ -n "$home" ]; then
+            for cand in "$home/uv.exe" "$home/uv"; do
+                if [ -x "$cand" ]; then
+                    printf '%s\n' "$cand"
+                    return 0
+                fi
+            done
+        fi
+    fi
+    for cand in "$HOME/.local/bin/uv" "/usr/local/bin/uv" "/usr/bin/uv"; do
+        if [ -x "$cand" ]; then
+            printf '%s\n' "$cand"
+            return 0
+        fi
+    done
+    # 最后一档才是 PATH 兜底（Git Bash / CI 里钩子可能拿到精简过的 PATH）
+    if command -v uv >/dev/null 2>&1; then
+        command -v uv
+        return 0
+    fi
+    return 1
+}
+
+py=""
+for cand in "$root/.venv/Scripts/python.exe" "$root/.venv/bin/python" python3 python; do
+    if [ -x "$cand" ] || command -v "$cand" >/dev/null 2>&1; then
+        py="$cand"
+        break
+    fi
+done
+
+if [ -z "$py" ]; then
+    echo "[eval-gate] 未找到 python，无法跑评测门禁" >&2
+    echo "[eval-gate] 先装依赖（uv sync 或 python -m venv .venv），或临时 ANYU_SKIP_EVAL_GATE=1 git push" >&2
+    exit 1
+fi
+
+# ---- 门禁 1：评测（迭代 9 · W5）---------------------------------------------
+if [ "${ANYU_SKIP_EVAL_GATE:-0}" = "1" ]; then
+    echo "[eval-gate] ANYU_SKIP_EVAL_GATE=1，跳过评测门禁（未达标的指标必须已在台账登记）" >&2
+else
+    if [ ! -f tests/eval_gate.py ]; then
+        echo "[eval-gate] 缺少 tests/eval_gate.py（迭代 9 · W5 交付物），push 被拦下" >&2
+        exit 1
+    fi
+
+    echo "[eval-gate] python: $py" >&2
+    if ! "$py" tests/eval_gate.py; then
+        echo "" >&2
+        echo "[eval-gate] 评测门禁未通过，push 已中止。" >&2
+        echo "[eval-gate] 复现：$py tests/eval_gate.py --verbose" >&2
+        echo "[eval-gate] 逐条失败用例会把 id 与原因打出来；修完再 push。" >&2
+        exit 1
+    fi
+
+    echo "[eval-gate] 通过：敏感召回与注入拦截均达阈值" >&2
+fi
+
+# ---- 门禁 2：全量 CI 八阶段（迭代 10 · W5）-----------------------------------
+if [ "${ANYU_SKIP_CI:-0}" = "1" ]; then
+    echo "[gate] ANYU_SKIP_CI=1，跳过 push 前 CI 八阶段" >&2
+    exit 0
+fi
+
+uv=$(find_uv) || {
+    echo "[gate] 未找到 uv（已尝试 ANYU_UV、.venv、pyvenv.cfg home、PATH），无法跑 CI 八阶段" >&2
+    echo "[gate] 装上 uv 后重试；确属环境问题需临时跳过：ANYU_SKIP_CI=1 git push" >&2
+    exit 1
+}
+
+echo "[gate] uv: $uv" >&2
+if ! "$uv" run --locked python scripts/ci.py; then
+    echo "" >&2
+    echo "[gate] CI 八阶段未通过，push 已中止（失败阶段见上面最后一行 stage 输出）。" >&2
+    echo "[gate] 复现全部：cd \"$root\" && \"$uv\" run --locked python scripts/ci.py" >&2
+    echo "[gate] 从失败阶段续跑：\"$uv\" run --locked python scripts/ci.py --from <stage>" >&2
+    echo "[gate] 单阶段复现：\"$uv\" run --locked python scripts/ci.py --stage <stage>" >&2
+    echo "[gate] 阶段名：lock sync lint type manifest test security build" >&2
+    echo "[gate] 确属环境问题需临时跳过：ANYU_SKIP_CI=1 git push" >&2
+    exit 1
+fi
+
+echo "[gate] CI 八阶段通过：lock / sync / lint / type / manifest / test / security / build" >&2
+
+# ---- 门禁 3：ci.py 与 workflow 的 argv 漂移（迭代 10 · 计划 §6.5 R4）------------
+# Gatekeeper 的静态审计只验 workflow 形状，不读 ci.py 的阶段表；这条补上「本地少跑一个
+# 阶段 / 某阶段被改宽」却两边都绿的缺口。
+if ! "$uv" run --locked python scripts/check_gate_sync.py; then
+    echo "" >&2
+    echo "[gate] ci.py 与 .github/workflows/anyu.yml 的命令行不一致，push 已中止。" >&2
+    echo "[gate] 复现：cd \"$root\" && \"$uv\" run --locked python scripts/check_gate_sync.py --verbose" >&2
+    echo "[gate] 改一侧 argv 必须同时改另一侧（含 build 阶段的 PROJECT OVERRIDE）。" >&2
+    exit 1
+fi
+
+echo "[gate] 门禁命令两侧一致（ci.py ↔ workflow）" >&2
+exit 0

@@ -1,0 +1,29 @@
+{
+  "step": "fallback",
+  "ok": true,
+  "fallbackVisibleMs": 281,
+  "fallbackImageLoaded": true,
+  "vrmLoadLog": [
+    "[vrm_load] ok=false reason=unknown 33ms"
+  ],
+  "hud": {
+    "fallback": {
+      "src": "http://127.0.0.1:5173/avatars/fallback.png",
+      "naturalWidth": 1920,
+      "naturalHeight": 1080
+    },
+    "canvasOpacity": "0",
+    "bodyText": "正在说 退出登录 您好呀，我在这儿陪着您，想聊点什么就跟我说。",
+    "blank": false
+  },
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "pageErrors": [],
+  "uncaught": 0,
+  "askDismiss": {
+    "dismissed": true,
+    "ms": 378
+  },
+  "screenshot": "spikes\\verify\\04-fallback.png"
+}

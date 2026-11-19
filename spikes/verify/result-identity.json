@@ -1,0 +1,63 @@
+{
+  "step": "identity",
+  "ok": true,
+  "loginFlowMs": 554,
+  "askVisibleMs": 176,
+  "askFrame": "{\"type\": \"identity_ask\", \"ask_id\": \"abfbdda521ef400f85678446ebbf5fef\", \"reason\": \"low_confidence\", \"candidates\": [{\"elder_id\": \"11111111-1111-4111-8111-111111111102\", \"display_name\": \"张*芬\"}], \"timeout_s\": 30}",
+  "confirmClickToOverlayClosedMs": 2446,
+  "identityResultFrame": "{\"type\": \"identity_result\", \"source\": \"confirm\", \"elder_id\": \"11111111-1111-4111-8111-111111111102\"}",
+  "identityConfirmSent": "{\"type\":\"identity_confirm\",\"ask_id\":\"abfbdda521ef400f85678446ebbf5fef\",\"elder_id\":\"11111111-1111-4111-8111-111111111102\"}",
+  "sentTypes": [
+    {
+      "dt": 72,
+      "type": "auth"
+    },
+    {
+      "dt": 325,
+      "type": "client_diag"
+    },
+    {
+      "dt": 1122,
+      "type": "client_diag"
+    },
+    {
+      "dt": 3714,
+      "type": "identity_confirm"
+    }
+  ],
+  "recvTypes": [
+    {
+      "dt": -446,
+      "type": "connected"
+    },
+    {
+      "dt": 103,
+      "type": "auth_ok"
+    },
+    {
+      "dt": 108,
+      "type": "identity_ask"
+    },
+    {
+      "dt": 3810,
+      "type": "identity_result"
+    },
+    {
+      "dt": 3810,
+      "type": "tts_text"
+    }
+  ],
+  "hud": {
+    "canvasOpacity": "1",
+    "fallbackImg": null,
+    "text": "正在说 退出登录 您好呀，我在这儿陪着您，想聊点什么就跟我说。"
+  },
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "pageErrors": [],
+  "screenshots": [
+    "spikes\\verify\\02-identity-ask.png",
+    "spikes\\verify\\03-after-confirm.png"
+  ]
+}

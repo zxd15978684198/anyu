@@ -1,0 +1,74 @@
+[
+  {
+    "file": "idle.vrma",
+    "name": "自然待机",
+    "source": "https://raw.githubusercontent.com/Undi95/Hanami/main/vrma/idle.vrma",
+    "license": "Apache-2.0",
+    "sha256": "9563c582418bd5b51da473ea85b41722cb5304f84128935c3b570c72316c444a",
+    "durationSeconds": 10
+  },
+  {
+    "file": "idle-talking.vrma",
+    "name": "站立说话",
+    "source": "https://raw.githubusercontent.com/Undi95/Hanami/main/vrma/idle-talking.vrma",
+    "license": "Apache-2.0",
+    "sha256": "74f50c1b63bb8c2b19276dd7db26c9e8096da72acb521d4e635b059730e78bd8",
+    "durationSeconds": 7.1
+  },
+  {
+    "file": "nod.vrma",
+    "name": "点头",
+    "source": "https://raw.githubusercontent.com/Undi95/Hanami/main/vrma/nod.vrma",
+    "license": "Apache-2.0",
+    "sha256": "c5f715092eacacc827b52c984ebd5c8b8d991b2e34102fbc03235b01c6bcbbe8",
+    "durationSeconds": 1.767
+  },
+  {
+    "file": "neutral.vrma",
+    "name": "静息",
+    "scene": "idle",
+    "source": "vrm-playground:public/assets/vrm/animations/common/neutral.vrma",
+    "license": "Apache-2.0",
+    "sha256": "91642c3593383d6b8e3d7ae2e5e408abac89a2baa31d2c1a3b625a46b0ab92b6"
+  },
+  {
+    "file": "idle-2.vrma",
+    "name": "倾听变体",
+    "scene": "listen",
+    "source": "vrm-playground:public/assets/vrm/animations/common/idle-2.vrma",
+    "license": "Apache-2.0",
+    "sha256": "7985c8621c2fb965b7d6f5236efa885cfa7fa92995d544f470dc0028864efa13"
+  },
+  {
+    "file": "idle-talking-6.vrma",
+    "name": "说话",
+    "scene": "talking",
+    "source": "vrm-playground:public/assets/vrm/animations/common/idle-talking-6.vrma",
+    "license": "Apache-2.0",
+    "sha256": "1648d8a03d7e563cad203fa88b80cfd7629e70292cbcc406bc730ac1ffc8bf60"
+  },
+  {
+    "file": "world-sit-talking.vrma",
+    "name": "坐姿说话",
+    "scene": "talking_sit",
+    "source": "vrm-playground:public/assets/vrm/animations/common/world-sit-talking.vrma",
+    "license": "Apache-2.0",
+    "sha256": "6b4bd3302df5537fe2a82551b3e36450e96d52381c3050bb428577956b9b86f1"
+  },
+  {
+    "file": "VRMA_01.vrma",
+    "name": "展示动作",
+    "scene": "show",
+    "source": "vrm-playground:public/assets/vrm/animations/VRMA_01.vrma",
+    "license": "Apache-2.0",
+    "sha256": "f45abc44800c647fa106537a2e31a84cb83b74cf3dd8a0ee71c6915f1555ac57"
+  },
+  {
+    "file": "ダンス28.vrma",
+    "name": "才艺舞蹈",
+    "scene": "talent",
+    "source": "vrm-playground:public/assets/vrm/animations/ダンス28.vrma",
+    "license": "Apache-2.0",
+    "sha256": "493fcfec6815b95adc8694dc2b1805c19bc4a198a05f33933f0c3eee90c1d35a"
+  }
+]

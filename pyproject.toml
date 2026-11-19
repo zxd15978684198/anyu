@@ -1,0 +1,220 @@
+[project]
+name = "anyu"
+version = "0.1.0"
+description = "安语（Anyu）· 3D 数字人康养陪伴系统：WebRTC 语音 + 三级路由 + 受约束 CompanionAgent"
+readme = "README.md"
+authors = [
+    { name = "zxd" }
+]
+# 技术设计文档 §1.4 要求 Python 3.12+；本仓库 .python-version 锁 3.12
+requires-python = ">=3.12"
+license = { text = "MIT" }
+keywords = ["elderly-care", "digital-human", "webrtc", "langgraph", "mcp", "agent"]
+
+# 版本一律在此统一锁定（技术设计文档 §1.4）。新增依赖前先进 spikes/ 验证。
+dependencies = [
+    # ---- HTTP 与配置 ----
+    "fastapi[standard]>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "python-multipart>=0.0.12",
+    "httpx>=0.27",
+    # ---- 数据层 ----
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "psycopg[binary]>=3.2",   # langgraph-checkpoint-postgres 使用同步驱动
+    "pgvector>=0.3.6",
+    "redis>=5.2",
+    # ---- 调度 ----
+    "apscheduler>=3.10",
+    # Celery 只承载「离线批处理」的触发（日报 / 通知升级 / 离线扫描 / 音频清理），
+    # 长者侧到点必须发生的任务（用药触达、19:00 健康采集）仍留在 APScheduler——
+    # 划分理由见 设计记录（celery定时任务边界） §2。
+    "celery[redis]>=5.7.0",
+    # ---- Agent / 工作流 ----
+    "langgraph>=0.2.60",
+    "langgraph-checkpoint-postgres>=2.0",
+    "mcp>=1.1",               # MCP 客户端与 mcp-servers 共用协议实现
+    # ---- 实时语音 ----
+    "aiortc>=1.10",
+    # VAD 用 webrtcvad-wheels 而非 webrtcvad：上游 webrtcvad 自 2017 年起只发 sdist，
+    # 在 Windows 上装它会强制要求 Microsoft C++ Build Tools（构建失败）。
+    # 本包是 daanzu 维护的同源 fork，import 名仍是 webrtcvad、API 完全一致，
+    # 自带 cp310–cp314 的 Windows/macOS/Linux 预编译 wheel，并修了内存泄漏与越界读。
+    "webrtcvad-wheels>=2.0.14",
+    # PyAV 是 aiortc 的硬运行时依赖（webrtc.py 直接 import av）。aiortc 包声明里把 av 放在 extra 里，
+    # Docker 构建和 `pip install .` 时不会自动拉取，必须显式声明。
+    "av>=13.0",
+    # ---- 鉴权 ----
+    "pyjwt[crypto]>=2.9",
+    "bcrypt>=4.2",
+    # ---- 数值（voiceprint cosine 比对 + embedding 归一化） ----
+    "numpy>=1.24",
+    # ---- 观测 ----
+    "prometheus-client>=0.21",
+    "opentelemetry-sdk>=1.28",
+    "opentelemetry-instrumentation-fastapi>=0.49b0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.28",
+    "langfuse>=2.54",
+    "websockets>=17.4",
+    "edge-tts>=7.3.1",
+    "opentelemetry-exporter-prometheus>=0.66b0",
+    "openinference-instrumentation-langchain>=0.1.86",
+]
+
+# uv：本项目是应用而非可分发包，不需要 build-system，也不安装自身
+[tool.uv]
+package = false
+
+# ---------------------------------------------------------------------------
+# 开发依赖（PEP 735 dependency groups，uv sync 默认安装）
+# ---------------------------------------------------------------------------
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "types-redis>=4.6",
+]
+security = [
+    "detect-secrets>=1.5.0",
+]
+
+# ---------------------------------------------------------------------------
+# ruff：格式化 + 静态检查
+#   迭代 10 · W5 注记：本节由 py-scaffold 生成，但生成器会把 ruff/pytest/coverage
+#   这几张「自有表」整表替换（lib/apply.js: appendMissingTables → owned 表 body 异则覆盖）。
+#   被覆盖掉的本仓既有取值已在下方逐条补回，勿再整段删除。
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# 本仓是应用形态（无 src/ 目录）：`app` `mcp-servers` 才是第一方代码根，
+# 生成器默认的 src = ["src"] 会让 I/F 两类规则判定链失效。
+src = ["app", "tests", "mcp-servers"]
+# 迁移脚本由 alembic 生成、spikes 是跑通即弃的验证桩、frontend 不是 Python 代码。
+extend-exclude = ["alembic/versions", "spikes", "frontend"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "SIM",  # simplify
+    "ASYNC",
+    "S",    # bandit（安全：禁止硬编码密钥等）
+    "RUF",
+]
+ignore = [
+    "E501",  # 行长由 formatter 处理
+    "S101",  # 允许 assert（测试需要）
+    "B008",  # FastAPI 依赖注入以函数调用作默认值
+    # 本项目注释与文档字符串默认用中文全角标点（：，（）、“”），
+    # RUF001/002/003 会把它们全判成「歧义字符」，对中文项目只是噪音。
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]
+"alembic/**" = ["E501"]
+# Gatekeeper 生成的四个门禁脚本（lib/pipeline/ir.js 的产物，py-scaffold 每次重跑都会
+# 原样重写）：生成器只保证它们在「窄规则集 E/F/I/B/UP」下干净，而本仓 select 额外开了
+# SIM / S / RUF，于是命中 ——
+#   S603   子进程执行（ci.py 调 uv/ruff/pytest、secret_scan.py 调 detect-secrets-hook，
+#          命令与参数全部是本仓常量，不是外部输入）
+#   SIM105 try/except/pass（探测工具可用性）
+#   RUF005 list 拼接（`HOOK_PREFIX + [...]`）
+#   RUF100 脚本第 2 行自带的 `# noqa: E501`，而 E501 已被全局 ignore
+# 不手改生成物的理由同上：改了下次 py-scaffold 重新生成就对不上，会走成 conflict。
+# 逐条列码、不做通配，也不豁免任何「密钥/硬编码口令」类规则（S105/S106 仍在）。
+# scripts/make-wake-wav.py 是本地造「唤醒词假麦克风」音频的脚本（不入库的产物落在 .tmp/）。
+# 它只有一处子进程调用：subprocess.run(argv_list, check=True)，**argv 是列表、未传
+# shell=True（默认 False）**，ffmpeg 可执行路径来自 shutil.which()，其余元素是脚本内常量
+# 或用户显式指定的输入/输出路径，全部不经过 shell 解析 —— 没有命令注入面，故只对
+# 这一个文件放开 S603；不做 "scripts/*" 通配，免得以后新脚本默认继承这份豁免。
+"scripts/make-wake-wav.py" = ["S603"]
+"scripts/ci.py" = ["RUF100", "SIM105", "S603"]
+"scripts/secret_scan.py" = ["RUF100", "SIM105", "S603", "RUF005"]
+"scripts/container_report.py" = ["RUF100", "S603"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+# 文档不作为格式化对象：md 里的 code block 一旦被 ruff 重排，就会改写契约文档的
+# 列对齐与人工排版（契约定稿是几个人对着读的）。
+# 后四项是生成器产出的门禁脚本：排版跟插件版本走，被本仓 ruff 重排后下次重生成必红，
+# 故与 Gatekeeper lib/pyproject.js 的提议保持一致。
+# 未采纳其提议的 docstring-code-format = true：它会把 app/** 文档字符串里的示例代码
+# 全仓重排，属本工单写作用域之外（app/** 禁改），且会让 format 门禁在落地当天就红。
+exclude = [
+    "*.md",
+    "scripts/ci.py",
+    "scripts/secret_scan.py",
+    "scripts/validate_version_manifest.py",
+    "scripts/container_report.py",
+]
+
+# ---------------------------------------------------------------------------
+# pytest：覆盖率口径来自 PRD FR-TC-06（核心 Tool 与权限 100%，接口 ≥70%）
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+# 本项目是应用形态（[tool.uv] package = false），`app` 不会被装进 site-packages；
+# 不把仓库根加进 sys.path 时，`from app.main import create_app` 会 ModuleNotFoundError。
+pythonpath = ["."]
+asyncio_mode = "auto"
+# pytest-asyncio 未来默认值变更提示，显式钉住避免行为漂移
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "gate: 三道隔离闸门（会话/记忆/工具授权），100% 覆盖",
+    "injection: 提示注入与日志脱敏用例",
+    "slow: 依赖外部服务的慢用例",
+]
+filterwarnings = ["ignore::DeprecationWarning:aiortc.*"]
+
+# report 表排在 run 表之前是刻意的：py-audit 的 coverage-floor-missing 规则
+# （lib/pipeline/audit.js 的 coverageFloor()）只截取**第一个** coverage 表来读
+# fail_under，run 表在前时它会看不到门槛而误报「没有覆盖率下限」。
+# 本注释里刻意不写出那个表头的字面量，否则规则会把注释当成表头去截取。
+# 门槛只此一处，不在任何 argv 里重复写 --cov-fail-under（pytest-cov/plugin.py:270
+# 会从这里的 coverage 配置读 fail_under，重复写会造出会「静默胜出」的第二份下限）。
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+# S-D10-3（设计记录（交付与观测） §4.1）：门槛 70 → 80。
+# PRD FR-TC-06 的 ≥70% 是验收下限；迭代 7 实测 83.87%，取 80 留 3.87pt 余量。
+fail_under = 80
+
+[tool.coverage.run]
+# 生成器默认 source = ["src"]；本仓第一方代码在 app/，写成 src 会让覆盖率测到 0 行。
+source = ["app"]
+branch = true
+omit = ["app/main.py", "alembic/*"]
+
+# ---------------------------------------------------------------------------
+# mypy
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+files = ["app", "mcp-servers"]
+strict = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["aiortc.*", "webrtcvad.*", "apscheduler.*", "langfuse.*", "celery", "celery.*"]
+ignore_missing_imports = true

@@ -1,0 +1,164 @@
+# ============================================================
+# 安语（Anyu）· 仓库忽略规则
+# 原则：密钥与环境文件永不入库；产物、缓存、大文件不入库；
+#      uv.lock / eval/reports / 迁移脚本必须入库。
+# ============================================================
+
+# ---------- 1. 密钥与环境变量（红线）----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+certs/
+
+# ---------- 2. Python / uv ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+.venv.bak/
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+# uv.lock 是应用项目的锁文件，必须入库，故不忽略
+
+# ---------- 3. 测试 / 静态检查缓存 ----------
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+junit.xml
+report.html
+
+# ---------- 4. Node / 前端（单 React 工程，Vite MPA 三入口）----------
+node_modules/
+frontend/**/dist/
+frontend/**/.vite/
+.pnpm-store/
+.yarn/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# ---------- 5. 运行时数据 / 上传 / 日志 ----------
+data/
+# 本机 Prometheus 兜底脚本（scripts/obs-local.ps1）的生成物：重写的抓取配置 + 时序数据。
+# 注意 `data/` 只匹配名为 data 的目录，**不覆盖** `.data/`，故这里单独列。
+# 只忽略 .data/prometheus/ 而不整个 .data/：将来若有需要入库的 .data 文件不被误伤。
+.data/
+runtime/
+uploads/
+logs/
+*.log
+*.pid
+*.db
+*.sqlite3
+pgdata/
+redisdata/
+langfuse-data/
+
+# ---------- 6. 媒体与 3D 大文件（走 nginx 静态目录或 Git LFS，不进普通提交）----------
+assets/media/
+static/media/
+static/mock/
+# 素材音频不入库、清单入库（AGENTS §4-11「不提交媒体大文件」）：
+# `media/manifest.json` 是授权素材的唯一事实来源（media_url / 授权状态 / 时长 / 出处），
+# 它必须跟代码一起走版本库；它指向的 mp3/wav/ogg/m4a 是抓取来的大文件，可再生成，
+# 只在本机 `media/` 下存在，不入库。
+# 只按扩展名忽略（不是整目录 `media/`）：清单因此天然在册；若改成整目录忽略，
+# git 不再进入该目录，`!media/manifest.json` 这类反忽略规则也救不回来。
+media/**/*.mp3
+media/**/*.wav
+media/**/*.ogg
+media/**/*.m4a
+*.vrm
+# 动作文件与模型同族：都是本地资产目录里的第三方二进制（VRMA 多为 VRoid / 社群作品，
+# 许可证各自不同），一旦写进 Git 历史就删不掉。6 条新动作合计约 4.6MB，按「媒体大文件
+# 不入库」处理，只在本机 `frontend/public/avatars/animations/` 下存在。
+# 已在册的 idle / nod / idle-talking 三条不动（历史已有，反忽略不适用，删了会破前端默认基线）。
+*.vrma
+*.glb
+*.fbx
+*.blend
+
+# ---------- 7. IDE / 编辑器 ----------
+.idea/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+*.iml
+*.swp
+*.swo
+
+# ---------- 8. 操作系统 ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- 9. 临时目录（spike 实验产物保留代码，丢弃输出）----------
+# `.tmp/` 是各会话的临时探针目录（verify_*.py / cdp_*.py 等一次性脚本，以及
+# scripts/make-wake-wav.py 产出的假麦克风音频）：既不入库，也不该进 lint 视野。
+# ruff 默认 respect-gitignore，忽略后 `ruff check .` 自然不再扫它——
+# 不要改用 per-file-ignores 去「屏蔽」临时目录，那会把噪声藏进配置。
+.tmp/
+tmp/
+scratch/
+spikes/**/out/
+spikes/**/output/
+
+# ---------- 10. 补丁残留 ----------
+*.orig
+*.rej
+*.bak
+
+# ---------- 11. AI / 笔记工具本地配置目录（不入库）----------
+.workbuddy/
+.obsidian/
+.zcode/
+
+# ---------- 12. pytest / 临时探针目录 ----------
+# 本机 TEMP 是 8.3 短名（形如 <用户名>~1），tempfile.gettempdir() 会回退到 CWD，
+# pytest 的 tmp_path 工厂因此把 pytest-of-<user>/ 落在仓库根；探针脚本同理。
+pytest-of-*/
+.pytest-tmp/
+.tmp-pytest/
+pytest-bt3/
+tts-spike-*/
+.probe/
+seeds/
+# torch/pytest/后台任务在 TEMP 回退到 CWD 时的其余落盘残留（同 §12 头注释成因）
+torchinductor_*/
+anyu-empty-jobs-*/
+
+# ---------- 13. 演示与验收截图（本地产物，不入库） ----------
+# Playwright 跑通流程的截屏放这里：体积大、且随每次运行变化，只作现场演示与排障用。
+demo-shots/
+
+# uv 本机缓存（被 ACL 拒写的那个目录，门禁改用工作区内缓存）
+.uv-cache/
+
+# Grafana Cloud OTLP 凭据（本机，不入库）
+.obs.env
+
+# 本机按需 Prometheus 二进制（scripts/obs-local.ps1 用；~100MB，不入库）
+tools/prometheus/
+
+# CAM++ 声纹模型（27MB，按 README 本地下载，不入库）
+deploy/voiceprint/models/*.onnx
+
+# 本机 AI 会话临时目录（pytest basetemp、mypy 缓存等，仅本机使用，不入库）
+.dsh-tmp/

@@ -1,0 +1,44 @@
+# ============================================================================
+# 安语（Anyu）· 公网部署覆盖层
+#
+# 用法（与主 compose 叠加，不要单独用）：
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile celery up -d \
+#     backend celery-worker celery-beat
+#
+# 只做四件事，其余一律继承 docker-compose.yml：
+#   1. backend 进 production 模式 + 限流信任 nginx 的 X-Forwarded-For；
+#   2. frontend 的证书目录改指向 Let's Encrypt（文件名仍是 dev.crt/dev.key，
+#      靠证书目录里的软链对齐，见 docs/deploy/公网部署.md §6）；
+#   3. coturn 的证书文件名改成 LE 的 fullchain.pem / privkey.pem，并强制 external-ip；
+#   4. 给三个吃内存的服务加 mem_limit，防止 OOM 把整机拖死。
+# ============================================================================
+
+services:
+  backend:
+    environment:
+      APP_ENV: production
+      # nginx 在容器里、后端看到的是 docker 网段；不信任这个头时限流会把全站算成一个 IP。
+      RATE_LIMIT_TRUST_FORWARDED_FOR: "1"
+      RATE_LIMIT_TRUSTED_PROXIES: '["172.16.0.0/12"]'
+    mem_limit: 2g
+
+  frontend:
+    environment:
+      # 主机上的 LE 目录只读挂进来；容器内路径不变（/etc/nginx/certs），
+      # 因此 nginx.https.conf 一行都不用改。
+      CERTS_DIR: ${CERTS_DIR:?请在 .env 里设 CERTS_DIR=/etc/letsencrypt/live/pad.zhangxianda.online}
+    mem_limit: 256m
+
+  coturn:
+    environment:
+      TURN_CERT_FILE: fullchain.pem
+      TURN_KEY_FILE: privkey.pem
+      TURN_EXTERNAL_IP: ${TURN_EXTERNAL_IP:?请在 .env 里设 TURN_EXTERNAL_IP=服务器公网 IP}
+    mem_limit: 256m
+
+  postgres:
+    mem_limit: 2g
+
+  redis:
+    mem_limit: 512m

@@ -1,0 +1,15 @@
+{
+  "name": "spike-avatar",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "T5a spike：验证 deploy/assets/avatars/vrm1_sample.vrm 能否加载、首帧耗时、rotateVRM0 朝向",
+  "scripts": {
+    "dev": "node serve.mjs"
+  },
+  "dependencies": {
+    "@pixiv/three-vrm": "3.5.3",
+    "@pixiv/three-vrm-animation": "3.5.3",
+    "three": "0.180.0"
+  }
+}

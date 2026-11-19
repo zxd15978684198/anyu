@@ -1,0 +1,55 @@
+{
+  "step": "first-frame",
+  "ok": true,
+  "loginFlowMs": 441,
+  "fillMs": 308,
+  "canvasAttachedMs": 41,
+  "canvasVisibleMs": 3530,
+  "firstFrameLog": [
+    "[vrm] first frame 1162ms"
+  ],
+  "vrmLoadLog": [
+    "[vrm_load] ok=true 920ms"
+  ],
+  "hud": {
+    "canvas": {
+      "w": 516,
+      "h": 516,
+      "css": [
+        516,
+        516
+      ],
+      "opacity": "1"
+    },
+    "fallbackImg": null,
+    "webgl": true,
+    "overlayAsk": false,
+    "text": "正在说 退出登录 您好呀，我在这儿陪着您，想聊点什么就跟我说。"
+  },
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "wsRecv": [
+    {
+      "dt": -343,
+      "p": "{\"type\":\"connected\"}"
+    },
+    {
+      "dt": 91,
+      "p": "{\"type\": \"auth_ok\", \"elder_id\": \"11111111-1111-4111-8111-111111111102\", \"room_id\": \"11111111-1111-4111-8111-111111111101"
+    },
+    {
+      "dt": 102,
+      "p": "{\"type\": \"identity_ask\", \"ask_id\": \"434c67dcceac402abf5a56bb175f7361\", \"reason\": \"low_confidence\", \"candidates\": [{\"elde"
+    },
+    {
+      "dt": 5549,
+      "p": "{\"type\": \"identity_result\", \"source\": \"confirm\", \"elder_id\": \"11111111-1111-4111-8111-111111111102\"}"
+    },
+    {
+      "dt": 5549,
+      "p": "{\"type\": \"tts_text\", \"text\": \"您好呀，我在这儿陪着您，想聊点什么就跟我说。\", \"degraded\": false}"
+    }
+  ],
+  "screenshot": "spikes\\verify\\01-first-frame-overlay.png"
+}
