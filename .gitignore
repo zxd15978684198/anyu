@@ -160,5 +160,11 @@ tools/prometheus/
 # CAM++ 声纹模型（27MB，按 README 本地下载，不入库）
 deploy/voiceprint/models/*.onnx
 
+# 本机量化向量权重（bge-m3 int8 ONNX，约 570MB，deploy/embedding/fetch_model.py 下载，不入库）
+embedding-model/
+
+# laya 权重包（2.21GB，本机按 README 放置，不入库）
+laya-model/
+
 # 本机 AI 会话临时目录（pytest basetemp、mypy 缓存等，仅本机使用，不入库）
 .dsh-tmp/

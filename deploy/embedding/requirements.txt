@@ -1,0 +1,12 @@
+# BGE-M3 int8 量化向量服务依赖（只装在容器里，不进项目 pyproject）
+#
+# onnxruntime 走 CPU 包：`onnxruntime` 而非 `onnxruntime-gpu`——本机 Docker VM 没有 GPU 直通，
+# 装 GPU 包只会多带几百 MB CUDA 依赖。
+# tokenizers 用上 Rust 版（不是 transformers）：只要 tokenizer.json 一种输入，不需要整条
+# transformers 依赖链（torch 都不必装，镜像因此能压在 ~400 MB）。
+fastapi==0.115.6
+uvicorn==0.34.0
+onnxruntime==1.20.1
+tokenizers==0.21.0
+numpy==2.2.1
+huggingface-hub==0.27.1

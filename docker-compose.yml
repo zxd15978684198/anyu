@@ -396,6 +396,64 @@ services:
       start_period: 180s
 
   # ---------------------------------------------------------------------------
+  # 向量服务：bge-m3 int8 量化（OpenAI 兼容 /v1/embeddings）
+  # ---------------------------------------------------------------------------
+  embedding:
+    # 只在显式 `--profile embedding` 时启动，**默认不参与 `docker compose up`**：
+    # Docker VM 只有 3.728GiB，它常驻约 1GiB，和 funasr/backend 一起跑会触发内核
+    # OOM killer 随机杀进程（不报错，表现成「后端突然 500 / 连不上库」，极难查）。
+    # 用法：起它并指向它 → 演示 → `docker compose --profile embedding stop embedding`。
+    build:
+      context: ./deploy/embedding
+      dockerfile: Dockerfile
+      args:
+        PIP_INDEX_URL: ${EMBEDDING_PIP_INDEX_URL:-}
+    image: ${EMBEDDING_IMAGE:-anyu-embedding:local}
+    container_name: anyu-embedding
+    restart: "no"
+    logging: *default-logging
+    profiles: ["embedding"]
+    environment:
+      EMBEDDING_MODEL_DIR: /models/bge-m3
+      EMBEDDING_ONNX_FILE: onnx/model_quantized.onnx
+      # CLS 池化 + L2 归一化：BGE-M3 官方 dense 表征就是这个口径；改成 mean 会与云端
+      # 向量不可比，召回静默劣化（不报错）。详见 deploy/embedding/server.py 顶部。
+      EMBEDDING_POOLING: cls
+      EMBEDDING_THREADS: "2"
+      EMBEDDING_MAX_BATCH: "32"
+      EMBEDDING_MAX_TOKENS: "512"
+      # 与后端共用同一个变量：后端要非空 key 才走 HTTP，本服务只在设了它时才校验 Bearer。
+      # 两边读同一个值，所以 .env 里给一个非空串（如 local）即可。
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+    volumes:
+      # 权重不入镜像、不入 Git：宿主机目录只读挂载（先跑 deploy/embedding/fetch_model.py）。
+      # 长语法避免 Windows 盘符被短语法的冒号切分误判。
+      - type: bind
+        source: ${EMBEDDING_WEIGHTS_DIR:-./embedding-model}
+        target: /models/bge-m3
+        read_only: true
+    ports:
+      - "127.0.0.1:${EMBEDDING_HOST_PORT:-7004}:7004"
+    networks:
+      - anyu
+    # int8 实测常驻约 1GiB；cap 到 1536m 给它 ~50% 余量，同时保证它膨胀时先死自己，
+    # 而不是把 backend/postgres 一起拖下水（与 laya 的 2048m 同一思路）。
+    mem_limit: 1536m
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import sys,urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:7004/health', timeout=4).status == 200 else 1)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      # 加载期 /health 返回 503：int8 实测 5~15s，冷容器 + 换页按 2 分钟留足。
+      start_period: 120s
+
+  # ---------------------------------------------------------------------------
   # MCP tools：天气（唯一真实外呼）+ Mock 工单/通知
   # ---------------------------------------------------------------------------
   weather-mcp:
