@@ -97,8 +97,32 @@ interface SentMessages {
 }
 
 /** 把浏览器全局塞进 Node：模块已在 import 时求值，这里只影响运行时查找。 */
+/**
+ * `sessionStorage` 桩：Node 24 没有这个全局（Node 26 起才内置内存版 Storage），而
+ * `ice.ts` 的 `loadIceServers()` 第一行走 `session.ts` 的 `loadSession()` 读它。
+ * 不装桩时这条路径抛 `ReferenceError`，用例假红在「没建 pc」。浏览器里恒存在，桩即空存储。
+ */
+function installSessionStorage(g: Record<string, unknown>): void {
+  const store = new Map<string, string>();
+  Object.defineProperty(g, "sessionStorage", {
+    value: {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => void store.set(key, String(value)),
+      removeItem: (key: string) => void store.delete(key),
+      clear: () => void store.clear(),
+      key: (index: number) => [...store.keys()][index] ?? null,
+      get length() {
+        return store.size;
+      },
+    },
+    configurable: true,
+    writable: true,
+  });
+}
+
 function installBrowserGlobals(): void {
   const g = globalThis as unknown as Record<string, unknown>;
+  installSessionStorage(g);
   g.RTCPeerConnection = FakeRTCPeerConnection;
   // `attachRemoteStream` 只读 `e.streams[0]`，不会 trigger ontrack；给个占位即可
   g.MediaStream = class FakeMediaStream {

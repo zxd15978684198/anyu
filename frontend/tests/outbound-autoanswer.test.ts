@@ -143,8 +143,33 @@ function makeFakeMediaStream(): {
 }
 
 /** 浏览器全局：只塞接听路径真正会碰到的那些面。 */
+/**
+ * `sessionStorage` 桩：Node 24 没有这个全局（Node 26 起才内置内存版 Storage），而
+ * `realtime.ts → ice.ts → session.ts` 的 `loadSession()` 会直接读它。不装桩时
+ * `loadIceServers()` 在待机/自动接听路径上抛 `ReferenceError`，用例假红在「没建 pc」。
+ * 浏览器里它恒存在，桩的语义就是「空存储」：`getItem` 一律 null。
+ */
+function installSessionStorage(g: Record<string, unknown>): void {
+  const store = new Map<string, string>();
+  Object.defineProperty(g, "sessionStorage", {
+    value: {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => void store.set(key, String(value)),
+      removeItem: (key: string) => void store.delete(key),
+      clear: () => void store.clear(),
+      key: (index: number) => [...store.keys()][index] ?? null,
+      get length() {
+        return store.size;
+      },
+    },
+    configurable: true,
+    writable: true,
+  });
+}
+
 function installBrowserGlobals(): void {
   const g = globalThis as unknown as Record<string, unknown>;
+  installSessionStorage(g);
   g.RTCPeerConnection = FakeRTCPeerConnection;
   g.MediaStream = class FakeMediaStream {
     getAudioTracks(): unknown[] {
