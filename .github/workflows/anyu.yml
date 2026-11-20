@@ -114,6 +114,17 @@ jobs:
       - name: Frontend unit tests (node --test, zero-test guarded)
         run: node scripts/run-frontend-tests.mjs
 
+      # Actions 日志接口要 admin 权限，拿不到时就只剩注解这一条通道：
+      # 失败后重跑一次把输出转成 ::error:: 注解，才不用靠猜（约 20s，只在红的时候花）。
+      - name: Frontend failure digest
+        if: failure()
+        run: |
+          node scripts/run-frontend-tests.mjs > /tmp/frontend-tests.log 2>&1 || true
+          echo "::error::frontend-tests 失败，最后 40 行输出："
+          tail -40 /tmp/frontend-tests.log | while IFS= read -r line; do
+            echo "::error::$line"
+          done
+
       - name: Secret scan (python scripts/secret_scan.py)
         run: uv run --locked python scripts/secret_scan.py
 
