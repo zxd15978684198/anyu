@@ -58,7 +58,7 @@ jobs:
       # src 且 types 只有 vite/client，.ts 用例进 src 会让 pnpm build 的 tsc 报 TS2307），
       # 文件数为 0 或跑出来用例数为 0 都以 1 退出，堵住 `node --test` 对空 glob 返回 0 的假绿。
       - name: Setup Node (frontend unit tests)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "24"
 
