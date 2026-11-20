@@ -214,6 +214,23 @@ async def db_conn() -> AsyncIterator[AsyncConnection]:
 
 
 @pytest.fixture(autouse=True)
+async def _dispose_engine_pool_per_test() -> AsyncIterator[None]:
+    """每用例结束后清空 `app.db.engine` 的连接池（AGENTS §9 既有基线的根治）。
+
+    为什么必须清：引擎是模块级单例（队列表 `QueuePool`），而 pytest-asyncio 默认给**每个
+    用例新建事件循环**。池里残留的 asyncpg 连接绑在上一个已关闭的循环上，下一个用例
+    checkout 时 pre-ping 失败、再 terminate 就撞上关闭的循环，抛
+    `AttributeError('NoneType' object has no attribute 'send')`，最终表现为
+    `Event loop is closed`（全量跑到 `test_conversation_event_service` 必现，单文件跑不现）。
+
+    清池后连接不跨循环残留，与「per-loop 引擎」等价，但只动夹具不动 `app/db.py`：
+    生产代码的池化策略不该为了测试改成 NullPool。
+    """
+    yield
+    await app_engine.dispose()
+
+
+@pytest.fixture(autouse=True)
 def _isolate_session_guardrails() -> Iterator[None]:
     """每个用例前后清空会话级护栏缓存（迭代 9 · B3-04 修复的副作用）。
 
