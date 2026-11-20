@@ -44,6 +44,9 @@ jobs:
       # （runner 上 `localhost` 先解析 ::1，与 conftest 的 `_force_ipv4_loopback` 同一理由）。
       DATABASE_URL: postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu
       LANGGRAPH_CHECKPOINT_DATABASE_URL: postgresql://anyu:anyu@127.0.0.1:5432/anyu
+      # 用药/记忆等 e2e 用例硬性要求它（未设直接 fail，不 skip）：CI 的服务容器是一次性的，
+      # 与 DATABASE_URL 同库即可；`tests/conftest.py` 见到它就把它当作测试库。
+      ANYU_TEST_DATABASE_URL: postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu
     steps:
       - uses: actions/checkout@v4
 
@@ -83,41 +86,10 @@ jobs:
       - name: Apply migrations (alembic upgrade head)
         run: uv run --locked alembic upgrade head
 
+      # `-m "not slow"` 与 scripts/ci.py 的 test 阶段逐字一致：`slow` 标记的用例依赖
+      # 外部服务（真 edge-tts 合成），在 runner 上既不稳定也不该让外网决定流水线颜色。
       - name: Test (pytest)
-        env:
-          # 临时诊断：把 junit 与覆盖率报告写到 /tmp，供下一步转成注解（定位完即删）
-          PYTEST_ADDOPTS: "--junitxml=/tmp/junit.xml --cov-report=xml:/tmp/coverage.xml"
-        run: uv run --locked pytest --cov --cov-report=term-missing
-
-      # 临时诊断：无 Actions 日志读取权限时，靠注解拿到「哪些用例红了 + 覆盖率多少」
-      - name: Diagnose pytest failures
-        if: failure()
-        run: |
-          python3 - <<'PY'
-          import os
-          import xml.etree.ElementTree as ET
-
-          if os.path.exists("/tmp/coverage.xml"):
-              try:
-                  root = ET.parse("/tmp/coverage.xml").getroot()
-                  print(f"::error::coverage={float(root.get('line-rate')) * 100:.2f}%")
-              except Exception as exc:  # noqa: BLE001
-                  print(f"::error::coverage-parse-failed {exc}")
-          else:
-              print("::error::coverage.xml-missing")
-
-          if not os.path.exists("/tmp/junit.xml"):
-              print("::error::junit.xml-missing")
-              raise SystemExit(0)
-
-          bad = []
-          for case in ET.parse("/tmp/junit.xml").getroot().iter("testcase"):
-              if case.find("failure") is not None or case.find("error") is not None:
-                  bad.append(f"{case.get('classname')}::{case.get('name')}")
-          print(f"::error::failed-count={len(bad)}")
-          for name in bad[:25]:
-              print(f"::error::{name}")
-          PY
+        run: uv run --locked pytest --cov --cov-report=term-missing -m "not slow"
 
       # 前端单测：与 scripts/ci.py 的 test 阶段第二步骤逐 argv 一致（check_gate_sync 双向比对）。
       # 只跑 Node 内建 test runner；`scripts/node-ts-hook.mjs` 用项目已有的 typescript

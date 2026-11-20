@@ -218,9 +218,11 @@ PAYLOAD = json.loads(r"""{
             "--locked",
             "pytest",
             "--cov",
-            "--cov-report=term-missing"
+            "--cov-report=term-missing",
+            "-m",
+            "not slow"
           ],
-          "run": "uv run --locked pytest --cov --cov-report=term-missing",
+          "run": "uv run --locked pytest --cov --cov-report=term-missing -m \"not slow\"",
           "timeoutSeconds": 900,
           "always": false
         },
