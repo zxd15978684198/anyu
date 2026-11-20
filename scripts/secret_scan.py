@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 
 BASELINE_DEFAULT = ".secrets.baseline"
 # The argv the course's pipeline builds by hand, kept as a list so no shell is
@@ -157,6 +159,24 @@ def _chunk_files(files: list[str], baseline: str) -> list[list[str]]:
     return chunks
 
 
+def _isolated_baseline(baseline_path: str) -> str:
+    """把基线复制到仓库外，再交给 hook。
+
+    detect-secrets-hook 解析 --baseline 时会先执行一次
+    `raise_exception_if_baseline_file_is_unstaged`：只要 `git diff --name-only`
+    里出现该路径，就直接以退出码 1 结束，一个文件都没扫。CI 的检出把同一个文件
+    算成了「工作区有改动」，于是这道门禁报的是「基线没 git add」，而不是任何
+    真实的 findings（本地 Windows 复现不出来）。
+
+    基线内容原样复制，只换成仓库外的路径：只读门禁不需要这个面向「提交前」的
+    交互检查。基线真过期时 hook 会返回 3 并保留原样，仍然会被判红。
+    """
+    fd, path = tempfile.mkstemp(prefix="secrets-baseline-", suffix=".json")
+    os.close(fd)
+    shutil.copyfile(baseline_path, path)
+    return path
+
+
 def _run_hook_chunk(files: list[str], baseline: str, root: str) -> int:
     """跑一批文件，返回退出码；0 表示这一批没有 findings。"""
     hooks = HOOK_PREFIX + ["--baseline", baseline]
@@ -198,7 +218,7 @@ def _run_hook_chunk(files: list[str], baseline: str, root: str) -> int:
     return code if code >= 0 else 128 - code
 
 
-def _run_hook(files: list, baseline: str, root: str, mode: str) -> int:
+def _run_hook(files: list, baseline: str, root: str, mode: str, label: str | None = None) -> int:
     """Run detect-secrets-hook on an argv list and pass its exit code through.
 
     分批是 Windows 命令行长度限制所迫，但**不因为某一批红了就跳过后续批次**：
@@ -206,11 +226,11 @@ def _run_hook(files: list, baseline: str, root: str, mode: str) -> int:
     才一次性冒出 54 处。所有批次都跑完再汇总，返回值取第一个非零码。
     """
     print(f"==> Secret 检查：{mode} {len(files)} 个文件", flush=True)
-    hooks = HOOK_PREFIX + ["--baseline", baseline]
+    shown_hooks = HOOK_PREFIX + ["--baseline", label or baseline]
     shown = (
-        " ".join(hooks + list(files))
+        " ".join(shown_hooks + list(files))
         if len(files) <= 5
-        else f"{' '.join(hooks)} <{len(files)} 个文件>"
+        else f"{' '.join(shown_hooks)} <{len(files)} 个文件>"
     )
     print(f"    $ {shown}", flush=True)
     chunks = _chunk_files([str(path) for path in files], baseline)
@@ -278,7 +298,14 @@ def main(argv: list | None = None) -> int:
         return 0
 
     mode = "暂存区" if args.staged else "全部跟踪文件"
-    return _run_hook(files, args.baseline, root, mode)
+    isolated = _isolated_baseline(baseline_path)
+    try:
+        return _run_hook(files, isolated, root, mode, label=args.baseline)
+    finally:
+        try:
+            os.unlink(isolated)
+        except OSError:
+            pass
 
 
 if __name__ == "__main__":
