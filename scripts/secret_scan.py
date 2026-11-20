@@ -5,7 +5,7 @@
 # One gate with two file lists: every Git tracked file for CI, only the staged
 # A/C/M files for the commit hook. Written as a script because the shell form of
 # the gate is a pipeline, and Windows has no xargs:
-#   git ls-files -z | xargs -0 uv run --locked detect-secrets-hook --baseline .secrets.baseline
+#   git ls-files -z | xargs -0 uv run --locked --group security detect-secrets-hook --baseline .secrets.baseline
 #
 #   uv run --locked python scripts/secret_scan.py
 #   uv run --locked python scripts/secret_scan.py --staged
@@ -21,7 +21,13 @@ import sys
 BASELINE_DEFAULT = ".secrets.baseline"
 # The argv the course's pipeline builds by hand, kept as a list so no shell is
 # involved: uv run --locked detect-secrets-hook --baseline .secrets.baseline <files...>
-HOOK_PREFIX = ["uv", "run", "--locked", "detect-secrets-hook"]
+#
+# --group security is load-bearing, not decoration: detect-secrets lives in the
+# `security` dependency group (pyproject.toml), not in the default groups, and
+# `uv run` re-syncs the environment to the default groups before exec. Without
+# the flag it evicts detect-secrets and the hook dies with "program not found"
+# (a local venv that had it pip-installed by hand masks this; CI never does).
+HOOK_PREFIX = ["uv", "run", "--locked", "--group", "security", "detect-secrets-hook"]
 # Printed verbatim. py-pipeline-run.failureKind() buckets by these markers, and a
 # gate that could not judge must never be reported as a gate that found a secret.
 MISSING_BASELINE_MESSAGE = "No such file or directory: .secrets.baseline"
