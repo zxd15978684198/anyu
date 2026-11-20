@@ -70,6 +70,13 @@ jobs:
       - name: Version manifest (python scripts/validate_version_manifest.py)
         run: uv run --locked python scripts/validate_version_manifest.py
 
+      # `pgvector/pgvector:pg16` 只把扩展文件装进镜像，不替库建扩展（实测全新库只有
+      # plpgsql）。迁移 0009 要建 `VECTOR(1536)` 列，缺扩展会报 `type "vector" does not
+      # exist`，所以必须在迁移前显式建一次；`IF NOT EXISTS` 保证可重复执行。
+      # 本地第一次起 compose 的 postgres 时由 `deploy/postgres/init/01-pgvector.sql` 完成。
+      - name: Enable pgvector extension
+        run: psql "postgresql://anyu:anyu@127.0.0.1:5432/anyu" -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
       # 服务容器里的库是空的：业务表由迁移建，不跑这一步 pytest 会红在「表不存在」。
       # 本地由开发者手动做（README §5 的 `alembic upgrade head`），所以它在 ci.py 的
       # 阶段表里没有对应项，已在 `scripts/check_gate_sync.py` 的 WORKFLOW_ONLY_PREFIXES 登记。

@@ -54,6 +54,9 @@ services:
       - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # 首次初始化（数据卷为空）时建 pgvector 扩展：镜像只装扩展文件、不替库建，
+      # 缺了它迁移 0009 的 `VECTOR(1536)` 会报 `type "vector" does not exist`。
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
     networks:
       - anyu
     healthcheck:
