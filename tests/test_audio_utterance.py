@@ -41,6 +41,7 @@ from app.db import get_session as _app_get_session
 from app.models.organization import Bed, Device, Elder, Room
 from app.services.dialogue_service import DialogueService
 from app.services.llm_service import LLMReply
+from conftest import truncate_identity_tables
 
 # ---------------------------------------------------------------------------
 # 常量
@@ -91,14 +92,7 @@ async def audio_test_engine() -> AsyncIterator[AsyncEngine]:
     """NullPool 引擎 + 启动时清 DB。"""
     engine = create_async_engine(get_settings().database_url, poolclass=NullPool)
     try:
-        async with engine.begin() as conn:
-            await conn.execute(
-                __import__("sqlalchemy").text(
-                    "TRUNCATE elder_guardians, elder_staff_assignments, "
-                    "guardian_accounts, staff_accounts, staff_tokens, "
-                    "devices, elders, beds, personas, rooms CASCADE"
-                )
-            )
+        await truncate_identity_tables(engine)
         yield engine
     finally:
         await engine.dispose()

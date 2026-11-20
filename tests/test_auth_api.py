@@ -18,7 +18,7 @@ from typing import Any
 import httpx
 import pytest
 from fastapi import FastAPI
-from sqlalchemy import text, update
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -37,6 +37,7 @@ from app.models import (
     StaffAccount,
 )
 from app.models.organization import Bed, Device, Elder, Room
+from conftest import truncate_identity_tables
 
 # ---------------------------------------------------------------------------
 # 常量
@@ -58,14 +59,7 @@ async def test_engine() -> AsyncIterator[AsyncEngine]:
     engine = create_async_engine(get_settings().database_url, poolclass=NullPool)
     try:
         # 每 session 跑之前先清掉可能残留的测试数据（之前版本 commit 没清）
-        async with engine.begin() as conn:
-            await conn.execute(
-                text(
-                    "TRUNCATE elder_guardians, elder_staff_assignments, "
-                    "guardian_accounts, staff_accounts, staff_tokens, "
-                    "devices, elders, beds, personas, rooms CASCADE"
-                )
-            )
+        await truncate_identity_tables(engine)
         yield engine
     finally:
         await engine.dispose()

@@ -16,11 +16,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from collections.abc import AsyncIterator, Iterator
 from typing import NoReturn
 
 import pytest
+from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from app.core.config import get_settings
@@ -176,6 +179,40 @@ def _raise_db_unavailable(exc: BaseException) -> NoReturn:
     if db_skip_allowed():
         pytest.skip(f"{DB_UNAVAILABLE_MESSAGE}（已显式设置 {ALLOW_DB_SKIP_ENV}=1）：{exc!r}")
     pytest.fail(f"{DB_UNAVAILABLE_MESSAGE}：{exc!r}", pytrace=False)
+
+
+#: 四个 API 用例文件（audio_security / audio_utterance / audio_ws_auth / auth_api）
+#: 共用的「身份表清空」语句。`TRUNCATE` 的列顺序无关，`CASCADE` 兜住外键。
+_IDENTITY_TRUNCATE_SQL = (
+    "TRUNCATE elder_guardians, elder_staff_assignments, "
+    "guardian_accounts, staff_accounts, staff_tokens, "
+    "devices, elders, beds, personas, rooms CASCADE"
+)
+
+#: 清表时等锁的上限（毫秒）。等不到就退避重试，而不是让整批用例卡死。
+_TRUNCATE_LOCK_TIMEOUT_MS = 3000
+
+
+async def truncate_identity_tables(engine: AsyncEngine, *, attempts: int = 4) -> None:
+    """清空身份相关表；遇到锁冲突（deadlock / lock_timeout）按退避重试。
+
+    为什么需要重试：`TRUNCATE` 要拿 `AccessExclusiveLock`，而全量套件里上一个用例的应用
+    会话可能仍持有 `rooms` 等表的共享锁，两边互等就是 `deadlock detected`
+    （2026-11-20 带覆盖率跑全量时实测 4 个 setup error，单跑这几个文件却全绿）。
+    测试库是整套用例独占的，退避后重试即可；真正持久的锁会在这里如实抛出，不被掩盖。
+    """
+    for attempt in range(1, attempts + 1):
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(
+                    text(f"SET LOCAL lock_timeout = '{_TRUNCATE_LOCK_TIMEOUT_MS}ms'")
+                )
+                await conn.execute(text(_IDENTITY_TRUNCATE_SQL))
+            return
+        except DBAPIError:
+            if attempt == attempts:
+                raise
+            await asyncio.sleep(0.2 * attempt)
 
 
 async def require_db_connection(db_engine: AsyncEngine) -> AsyncConnection:

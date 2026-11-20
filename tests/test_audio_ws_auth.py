@@ -31,7 +31,6 @@ from typing import Any
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -47,6 +46,7 @@ from app.core.security import sha256_hex, sign_device_session, sign_staff_access
 from app.db import get_session as _app_get_session
 from app.models.organization import Bed, Device, Elder, Room
 from app.models.staff import StaffAccount
+from conftest import truncate_identity_tables
 
 # ---------------------------------------------------------------------------
 # 常量与令牌工具
@@ -181,14 +181,7 @@ class WsClient:
 async def test_engine() -> AsyncIterator[AsyncEngine]:
     engine = create_async_engine(get_settings().database_url, poolclass=NullPool)
     try:
-        async with engine.begin() as conn:
-            await conn.execute(
-                text(
-                    "TRUNCATE elder_guardians, elder_staff_assignments, "
-                    "guardian_accounts, staff_accounts, staff_tokens, "
-                    "devices, elders, beds, personas, rooms CASCADE"
-                )
-            )
+        await truncate_identity_tables(engine)
         yield engine
     finally:
         await engine.dispose()

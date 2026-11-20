@@ -37,6 +37,7 @@ from app.core.config import get_settings
 from app.core.security import TokenExpiredError, sha256_hex
 from app.db import get_session as _app_get_session
 from app.models.organization import Bed, Device, Elder, Room
+from conftest import truncate_identity_tables
 
 _DEVICE_SECRET_PLAIN = "demo-device-secret-0001"  # pragma: allowlist secret
 
@@ -50,14 +51,7 @@ _DEVICE_SECRET_PLAIN = "demo-device-secret-0001"  # pragma: allowlist secret
 async def sec_engine() -> AsyncIterator[AsyncEngine]:
     engine = create_async_engine(get_settings().database_url, poolclass=NullPool)
     try:
-        async with engine.begin() as conn:
-            await conn.execute(
-                __import__("sqlalchemy").text(
-                    "TRUNCATE elder_guardians, elder_staff_assignments, "
-                    "guardian_accounts, staff_accounts, staff_tokens, "
-                    "devices, elders, beds, personas, rooms CASCADE"
-                )
-            )
+        await truncate_identity_tables(engine)
         yield engine
     finally:
         await engine.dispose()
