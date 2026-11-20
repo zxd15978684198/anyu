@@ -128,6 +128,16 @@ jobs:
       - name: Secret scan (python scripts/secret_scan.py)
         run: uv run --locked python scripts/secret_scan.py
 
+      # 失败时把「哪个文件第几行」变成注解：Actions 日志要 admin 才看得到，
+      # 注解是这条流水线唯一能对外说话的地方。复用已同步好的 .venv，避免再走
+      # `uv run`（那会让 check_gate_sync 认为 ci.py 里有此处没有的命令）。
+      - name: Secret scan failure digest
+        if: failure()
+        run: |
+          .venv/bin/python scripts/secret_scan.py 2>&1 \
+            | grep -E "Location:|Secret Type:|Secret 检查" \
+            | head -30 | sed 's/^/::error::/' || true
+
       # 覆盖上游默认：本项目是应用不是可分发包
       # （`[tool.uv] package = false` 且无 `[build-system]`），`uv build` 必然报
       # "Multiple top-level packages discovered"。阶段语义保留为「要交付的东西真能从已提交源码
