@@ -14,7 +14,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import shutil
 import subprocess
@@ -170,65 +169,12 @@ def _isolated_baseline(baseline_path: str) -> str:
     真实的 findings（本地 Windows 复现不出来）。
 
     基线内容原样复制，只换成仓库外的路径：只读门禁不需要这个面向「提交前」的
-    交互检查。hook 返回 3 时交给 ``_report_baseline_drift``：只有行号漂移就放行并
-    提示刷新基线，密钥集合真的变了才判红。
+    交互检查。hook 返回 3（没有新密钥、只是基线该刷新）时由调用方放行。
     """
     fd, path = tempfile.mkstemp(prefix="secrets-baseline-", suffix=".json")
     os.close(fd)
     shutil.copyfile(baseline_path, path)
     return path
-
-
-def _baseline_entries(path: str) -> dict[tuple[str, str, str], int]:
-    """把基线读成 {(文件, 类型, 哈希): 行号}；读不出结构就返回空字典表示不可判。"""
-    try:
-        with open(path, encoding="utf-8") as handle:
-            data = json.load(handle)
-    except (OSError, json.JSONDecodeError):
-        return {}
-    entries: dict[tuple[str, str, str], int] = {}
-    results = data.get("results")
-    if not isinstance(results, dict):
-        return {}
-    for filename, secrets in results.items():
-        if not isinstance(secrets, list):
-            continue
-        for item in secrets:
-            if not isinstance(item, dict):
-                continue
-            key = (str(filename), str(item.get("type")), str(item.get("hashed_secret")))
-            entries[key] = int(item.get("line_number") or 0)
-    return entries
-
-
-def _report_baseline_drift(original_path: str, updated_path: str) -> int:
-    """hook 重写过基线时，区分「只有行号漂移」与「密钥集合真的变了」。
-
-    detect-secrets-hook 的严格相等包含行号，所以任何一次「某个文件多了几行」都会让它
-    返回 3 并把基线整个重写。对只读门禁来说，行号漂移不是安全问题（密钥、类型、哈希
-    三条都没变），只有密钥集合变化才必须判红。
-    """
-    before = _baseline_entries(original_path)
-    after = _baseline_entries(updated_path)
-    if not before or not after:
-        print("基线被 hook 重写，但前后内容无法解析：按失败处理。", file=sys.stderr)
-        return 1
-    moved = sum(1 for key in before.keys() & after.keys() if before[key] != after[key])
-    added = after.keys() - before.keys()
-    removed = before.keys() - after.keys()
-    if not added and not removed:
-        print(
-            f"基线行号已过时：{moved} 条的行号变了，密钥集合未变，本次放行。"
-            "请执行 detect-secrets scan --baseline .secrets.baseline 刷新后提交。",
-            file=sys.stderr,
-        )
-        return 0
-    print(f"基线内容变化：新增 {len(added)} 条、消失 {len(removed)} 条", file=sys.stderr)
-    for key in sorted(added)[:10]:
-        print(f"  新增：{key[0]} :: {key[1]}", file=sys.stderr)
-    for key in sorted(removed)[:10]:
-        print(f"  消失：{key[0]} :: {key[1]}", file=sys.stderr)
-    return 1
 
 
 def _run_hook_chunk(files: list[str], baseline: str, root: str) -> int:
@@ -278,7 +224,6 @@ def _run_hook(
     root: str,
     mode: str,
     label: str | None = None,
-    original: str | None = None,
 ) -> int:
     """Run detect-secrets-hook on an argv list and pass its exit code through.
 
@@ -301,9 +246,15 @@ def _run_hook(
         if len(chunks) > 1:
             print(f"    - 第 {index}/{len(chunks)} 批：{len(chunk)} 个文件", flush=True)
         code = _run_hook_chunk(chunk, baseline, root)
-        if code == 3 and original is not None:
-            # 3 表示 hook 重写了基线（通常是行号漂移）：只有密钥集合变了才算红。
-            code = _report_baseline_drift(original, baseline)
+        if code == 3:
+            # 3 = 没有新密钥，只是基线需要刷新（行号漂移 / 条目已消除）。
+            # 新密钥由 hook 直接返回 1 并打印命中行，因此这里放行不会漏掉真问题。
+            print(
+                "基线可刷新（行号或已消除的条目有变化），本次放行；"
+                "刷新方式：detect-secrets scan --baseline .secrets.baseline",
+                file=sys.stderr,
+            )
+            code = 0
         if code != 0:
             failed_chunks.append(index)
             # 环境类错误（2 = 工具/缓存不可用）无意义继续扫下一批，其余继续扫完汇总。
@@ -364,7 +315,7 @@ def main(argv: list | None = None) -> int:
     mode = "暂存区" if args.staged else "全部跟踪文件"
     isolated = _isolated_baseline(baseline_path)
     try:
-        return _run_hook(files, isolated, root, mode, label=args.baseline, original=baseline_path)
+        return _run_hook(files, isolated, root, mode, label=args.baseline)
     finally:
         try:
             os.unlink(isolated)
