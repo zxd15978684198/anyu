@@ -2,7 +2,7 @@
 
 跑法（**必须**指向独立测试库，见下方「为什么不能事务回滚」）::
 
-    $env:ANYU_TEST_DATABASE_URL = "postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu_test"
+    $env:ANYU_TEST_DATABASE_URL = "postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu_test"  # pragma: allowlist secret
     uv run pytest tests/test_medication_reminder_e2e.py -q
 
 覆盖 TD:1114 / TD:1115 的 迭代 7 验收第 1、2、6 条：

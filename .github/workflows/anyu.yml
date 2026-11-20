@@ -30,7 +30,7 @@ jobs:
         image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: anyu
-          POSTGRES_PASSWORD: anyu
+          POSTGRES_PASSWORD: anyu  # pragma: allowlist secret
           POSTGRES_DB: anyu
         ports:
           - 5432:5432
@@ -42,11 +42,11 @@ jobs:
     env:
       # 与 `app/core/config.py` 的默认值同形，只把 `localhost` 换成 `127.0.0.1`
       # （runner 上 `localhost` 先解析 ::1，与 conftest 的 `_force_ipv4_loopback` 同一理由）。
-      DATABASE_URL: postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu
-      LANGGRAPH_CHECKPOINT_DATABASE_URL: postgresql://anyu:anyu@127.0.0.1:5432/anyu
+      DATABASE_URL: postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu  # pragma: allowlist secret
+      LANGGRAPH_CHECKPOINT_DATABASE_URL: postgresql://anyu:anyu@127.0.0.1:5432/anyu  # pragma: allowlist secret
       # 用药/记忆等 e2e 用例硬性要求它（未设直接 fail，不 skip）：CI 的服务容器是一次性的，
       # 与 DATABASE_URL 同库即可；`tests/conftest.py` 见到它就把它当作测试库。
-      ANYU_TEST_DATABASE_URL: postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu
+      ANYU_TEST_DATABASE_URL: postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu  # pragma: allowlist secret
     steps:
       - uses: actions/checkout@v4
 
@@ -78,7 +78,7 @@ jobs:
       # exist`，所以必须在迁移前显式建一次；`IF NOT EXISTS` 保证可重复执行。
       # 本地第一次起 compose 的 postgres 时由 `deploy/postgres/init/01-pgvector.sql` 完成。
       - name: Enable pgvector extension
-        run: psql "postgresql://anyu:anyu@127.0.0.1:5432/anyu" -c "CREATE EXTENSION IF NOT EXISTS vector;"
+        run: psql "postgresql://anyu:anyu@127.0.0.1:5432/anyu" -c "CREATE EXTENSION IF NOT EXISTS vector;"  # pragma: allowlist secret
 
       # 服务容器里的库是空的：业务表由迁移建，不跑这一步 pytest 会红在「表不存在」。
       # 本地由开发者手动做（README §5 的 `alembic upgrade head`），所以它在 ci.py 的

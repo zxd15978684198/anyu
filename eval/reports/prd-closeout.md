@@ -48,7 +48,7 @@
 ## 4. 验证命令与结果
 
 ```powershell
-$env:ANYU_TEST_DATABASE_URL="postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu_test"
+$env:ANYU_TEST_DATABASE_URL="postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu_test"  # pragma: allowlist secret
 .venv\Scripts\python.exe -m pytest tests\test_prd_closeout_e2e.py -q
 .venv\Scripts\python.exe -m pytest tests\test_dialogue_health_intent.py -q
 .venv\Scripts\python.exe -m pytest -q --ignore=tests/test_audio_tts.py -k "not audio_cleanup"

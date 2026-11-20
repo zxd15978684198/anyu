@@ -27,7 +27,7 @@ effective_from DESC, chunk_id` 的最后一项是 tie-break —— 没有它，�
 ## 跑法
 
 ```bash
-export ANYU_TEST_DATABASE_URL=postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu_test
+export ANYU_TEST_DATABASE_URL=postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu_test  # pragma: allowlist secret
 uv run pytest tests/test_knowledge_context.py -q
 ```
 

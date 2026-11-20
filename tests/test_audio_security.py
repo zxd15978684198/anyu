@@ -38,7 +38,7 @@ from app.core.security import TokenExpiredError, sha256_hex
 from app.db import get_session as _app_get_session
 from app.models.organization import Bed, Device, Elder, Room
 
-_DEVICE_SECRET_PLAIN = "demo-device-secret-0001"
+_DEVICE_SECRET_PLAIN = "demo-device-secret-0001"  # pragma: allowlist secret
 
 
 # ---------------------------------------------------------------------------

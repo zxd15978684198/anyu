@@ -80,7 +80,7 @@ def _use_test_database() -> None:
 
 
 #: 测试进程用的固定 JWT 密钥。48 字节，满足 `app/core/security.py:311` 的 ≥32 字节下限。
-_TEST_JWT_SECRET_ENV = "ANYU_TEST_JWT_SECRET"
+_TEST_JWT_SECRET_ENV = "ANYU_TEST_JWT_SECRET"  # pragma: allowlist secret
 _TEST_JWT_SECRET = "anyu-test-jwt-secret-0123456789abcdef"  # pragma: allowlist secret
 
 

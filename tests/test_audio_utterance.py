@@ -46,7 +46,7 @@ from app.services.llm_service import LLMReply
 # 常量
 # ---------------------------------------------------------------------------
 
-_DEVICE_SECRET_PLAIN = "demo-device-secret-0001"
+_DEVICE_SECRET_PLAIN = "demo-device-secret-0001"  # pragma: allowlist secret
 # 时长上限只有一个真源（audio.py 的 MAX_AUDIO_SECONDS，口径见 PRD FR-UI-01 的 120 秒）。
 # 本文件曾把它抄成字面量 30——上限一改，抄的那份就变成「用例替错误实现作证」。
 _MAX_AUDIO_SECONDS = audio_api.MAX_AUDIO_SECONDS

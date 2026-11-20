@@ -39,7 +39,7 @@
 先设测试库（AGENTS §9 第三条：不设会 TRUNCATE 开发库）：
 
 ```powershell
-$env:ANYU_TEST_DATABASE_URL="postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu_test"
+$env:ANYU_TEST_DATABASE_URL="postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu_test"  # pragma: allowlist secret
 ```
 
 ### 2.1 静态门禁
@@ -156,7 +156,7 @@ guard 命中会打 `knowledge_injection_blocked`（`logger.warning`，`extra` �
 ## 6. 复跑
 
 ```powershell
-$env:ANYU_TEST_DATABASE_URL="postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu_test"
+$env:ANYU_TEST_DATABASE_URL="postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu_test"  # pragma: allowlist secret
 .venv\Scripts\ruff.exe check tests/test_knowledge_e2e.py
 .venv\Scripts\ruff.exe format --check tests/test_knowledge_e2e.py
 .venv\Scripts\python.exe -m pytest tests/test_knowledge_e2e.py -q -p no:cacheprovider

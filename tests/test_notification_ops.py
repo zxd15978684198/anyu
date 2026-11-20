@@ -17,7 +17,7 @@
 
 跑法（**必须指独立测试库**，否则会与其它 agent 的 `TRUNCATE` 夹具互相踩）：
 
-    ANYU_TEST_DATABASE_URL=postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu_test_ge
+    ANYU_TEST_DATABASE_URL=postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu_test_ge  # pragma: allowlist secret
     uv run pytest tests/test_notification_ops.py -q
 """
 

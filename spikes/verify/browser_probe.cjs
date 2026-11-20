@@ -35,7 +35,7 @@ const CHROME =
   );
 const BASE = "http://127.0.0.1:5173/index.html";
 const DEVICE_ID = "11111111-1111-4111-8111-111111111106";
-const DEVICE_SECRET = "demo-device-secret-0001";
+const DEVICE_SECRET = "demo-device-secret-0001";  // pragma: allowlist secret
 const OUT_DIR = path.resolve(__dirname);
 
 const { chromium } = require(PW_CORE);

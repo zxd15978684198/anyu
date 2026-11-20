@@ -11,7 +11,7 @@
 | rooms | …1101 | A-301 |
 | elders | …1102 | 张桂芬（`persona_id` **仅在为 NULL 时**补） |
 | beds | …1105 | 1 号床 → 张桂芬（room_id=…1101） |
-| devices | …1106 | `token_hash = sha256("demo-device-secret-0001")` |
+| devices | …1106 | `token_hash = sha256("demo-device-secret-0001")` |  # pragma: allowlist secret
 
 覆盖规则（直接关系到别人会不会被踢下线，改之前先读这段）：
 
@@ -113,7 +113,7 @@ def device_token_hash() -> str:
     摘要复用 `app/core/security.sha256_hex`（`hashlib.sha256(...).hexdigest()`），
     与 `auth_service.exchange_device_token` 的比对口径是**同一份实现**，不复制算法。
     """
-    return sha256_hex("demo-device-secret-0001")
+    return sha256_hex("demo-device-secret-0001")  # pragma: allowlist secret
 
 
 # --------------------------------------------------------------------------

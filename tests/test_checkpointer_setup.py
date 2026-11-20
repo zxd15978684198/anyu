@@ -224,7 +224,7 @@ async def test_unreachable_database_raises_unavailable_within_budget(
         checkpointer_mod,
         "sync_dsn",
         lambda *_args, **_kwargs: (
-            "postgresql://anyu:anyu@127.0.0.1:1/anyu"
+            "postgresql://anyu:anyu@127.0.0.1:1/anyu"  # pragma: allowlist secret
         ),  # pragma: allowlist secret
     )
 
@@ -247,7 +247,7 @@ async def test_init_checkpointer_degrades_instead_of_raising(
         checkpointer_mod,
         "sync_dsn",
         lambda *_args, **_kwargs: (
-            "postgresql://anyu:anyu@127.0.0.1:1/anyu"
+            "postgresql://anyu:anyu@127.0.0.1:1/anyu"  # pragma: allowlist secret
         ),  # pragma: allowlist secret
     )
 

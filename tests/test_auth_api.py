@@ -44,7 +44,7 @@ from app.models.organization import Bed, Device, Elder, Room
 
 _TEST_PHONE = "13800000001"
 _TEST_PASSWORD = "test123"
-_DEVICE_SECRET_PLAIN = "demo-device-secret-0001"
+_DEVICE_SECRET_PLAIN = "demo-device-secret-0001"  # pragma: allowlist secret
 
 
 # ---------------------------------------------------------------------------

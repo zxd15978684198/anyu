@@ -69,7 +69,7 @@ LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 #: backend 必须等这两个服务 healthy。
 REQUIRED_HEALTHY_DEPS: tuple[str, ...] = ("postgres", "redis")
 
-#: `${...}` 占位符整体替换掉：避免把 `${POSTGRES_PASSWORD:-xx}` 里的 `PASSWORD:` 误判成明文。
+#: `${...}` 占位符整体替换掉：避免把 `${POSTGRES_PASSWORD:-xx}` 里的 `PASSWORD:` 误判成明文。  # pragma: allowlist secret
 PLACEHOLDER_RE = re.compile(r"\$\{[^}]*\}")
 
 #: `password=xxx` / `secret: xxx` / `api_key=xxx` 形态；`${` 前导已排除。

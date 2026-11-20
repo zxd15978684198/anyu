@@ -46,7 +46,7 @@ services:
     logging: *default-logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-anyu}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anyu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anyu}  # pragma: allowlist secret
       POSTGRES_DB: ${POSTGRES_DB:-anyu}
     ports:
       # 宿主端口可经环境变量改写（默认 5432，与 README §6.2 一致）；S-D10-4 要求只绑环回，
@@ -103,8 +103,8 @@ services:
       - .env
     environment:
       # 容器内一律用**服务名**寻址：.env 里写的是 localhost（宿主机跑用），这里覆盖掉。
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-anyu}:${POSTGRES_PASSWORD:-anyu}@postgres:5432/${POSTGRES_DB:-anyu}
-      LANGGRAPH_CHECKPOINT_DATABASE_URL: postgresql://${POSTGRES_USER:-anyu}:${POSTGRES_PASSWORD:-anyu}@postgres:5432/${POSTGRES_DB:-anyu}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-anyu}:${POSTGRES_PASSWORD:-anyu}@postgres:5432/${POSTGRES_DB:-anyu}  # pragma: allowlist secret
+      LANGGRAPH_CHECKPOINT_DATABASE_URL: postgresql://${POSTGRES_USER:-anyu}:${POSTGRES_PASSWORD:-anyu}@postgres:5432/${POSTGRES_DB:-anyu}  # pragma: allowlist secret
       REDIS_URL: redis://redis:6379/0
       # 调度开关：与 worker/beat 读同一个值（shell 或 .env 都能给，默认 false）。
       # true 时 backend 会把 6 条离线批处理从 APScheduler 摘掉、交给 celery beat。
@@ -171,7 +171,7 @@ services:
       # 默认值就是 scripts/seed_demo.py 种进去的那台平板；想关掉就显式设成空串。
       # app_env=production 时该端点一律 404，与这两项是否配置无关。
       DEMO_DEVICE_ID: ${DEMO_DEVICE_ID:-11111111-1111-4111-8111-111111111106}
-      DEMO_DEVICE_SECRET: ${DEMO_DEVICE_SECRET:-demo-device-secret-0001}
+      DEMO_DEVICE_SECRET: ${DEMO_DEVICE_SECRET:-demo-device-secret-0001}  # pragma: allowlist secret
     volumes:
       # 与 frontend 的 /srv/static 指向同一个宿主目录：后端写 static/mock/*.wav，
       # nginx 直出 /static/*（audio.py 用 os.getcwd()/static/mock，镜像 WORKDIR=/app）。
@@ -232,8 +232,8 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-anyu}:${POSTGRES_PASSWORD:-anyu}@postgres:5432/${POSTGRES_DB:-anyu}
-      LANGGRAPH_CHECKPOINT_DATABASE_URL: postgresql://${POSTGRES_USER:-anyu}:${POSTGRES_PASSWORD:-anyu}@postgres:5432/${POSTGRES_DB:-anyu}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-anyu}:${POSTGRES_PASSWORD:-anyu}@postgres:5432/${POSTGRES_DB:-anyu}  # pragma: allowlist secret
+      LANGGRAPH_CHECKPOINT_DATABASE_URL: postgresql://${POSTGRES_USER:-anyu}:${POSTGRES_PASSWORD:-anyu}@postgres:5432/${POSTGRES_DB:-anyu}  # pragma: allowlist secret
       REDIS_URL: redis://redis:6379/0
       # broker 走 /1：/0 是业务短期记忆，混用会让 flushdb 之类误删到业务键。
       # CELERY_ENABLED 必须与 backend 读同一个值（shell 或 .env），否则会出现
@@ -513,7 +513,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-anyu}:${POSTGRES_PASSWORD:-anyu}@postgres:5432/${POSTGRES_DB:-anyu}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-anyu}:${POSTGRES_PASSWORD:-anyu}@postgres:5432/${POSTGRES_DB:-anyu}  # pragma: allowlist secret
       # server.py 的 _serve_http() 用 settings.mcp_operations_server_url 决定 bind host:port，
       # 容器内必须绑 0.0.0.0 才能被 backend 通过服务名访问。
       MCP_OPERATIONS_SERVER_URL: http://0.0.0.0:7102/mcp

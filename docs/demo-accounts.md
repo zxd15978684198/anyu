@@ -32,7 +32,7 @@
 | 项 | 值 |
 | --- | --- |
 | 设备编号 | `11111111-1111-4111-8111-111111111106` |
-| 设备密钥 | `demo-device-secret-0001` |
+| 设备密钥 | `demo-device-secret-0001` |  # pragma: allowlist secret
 | 绑定长者 | 张桂芬（`11111111-1111-4111-8111-111111111102`，A-301） |
 | 数字人形象 | 小满（`personas.id = 11111111-1111-4111-8111-111111111201`） |
 
@@ -61,7 +61,7 @@ Set-Location <仓库根>
 若账号又失效，先确认是不是跑测试把开发库清了（`TRUNCATE`，见 `AGENTS.md` §9 第三条），跑测试请设：
 
 ```powershell
-$env:ANYU_TEST_DATABASE_URL='postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu_test'
+$env:ANYU_TEST_DATABASE_URL='postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu_test'  # pragma: allowlist secret
 ```
 
 ## 6. 验收数据包（`seed_acceptance.py`）
