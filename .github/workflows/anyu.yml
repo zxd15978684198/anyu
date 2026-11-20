@@ -21,6 +21,29 @@ jobs:
     name: Quality gates
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # 测试套件要真库：`tests/conftest.py` 的 `require_db_connection()` 连不上 PostgreSQL 时
+    # **一律 pytest.fail**（默认不 skip —— skip 的退出码仍是 0，会让 96 个用 `db_conn` 的文件
+    # 静默消失）。workflow 由模板渲染时没有 services 段，pytest 在 runner 上连 localhost:5432
+    # 直接被拒，Test 步骤必然红，这是本仓库 CI 第一次跑就失败的原因。
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: anyu
+          POSTGRES_PASSWORD: anyu
+          POSTGRES_DB: anyu
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U anyu -d anyu"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      # 与 `app/core/config.py` 的默认值同形，只把 `localhost` 换成 `127.0.0.1`
+      # （runner 上 `localhost` 先解析 ::1，与 conftest 的 `_force_ipv4_loopback` 同一理由）。
+      DATABASE_URL: postgresql+asyncpg://anyu:anyu@127.0.0.1:5432/anyu
+      LANGGRAPH_CHECKPOINT_DATABASE_URL: postgresql://anyu:anyu@127.0.0.1:5432/anyu
     steps:
       - uses: actions/checkout@v4
 
@@ -46,6 +69,12 @@ jobs:
 
       - name: Version manifest (python scripts/validate_version_manifest.py)
         run: uv run --locked python scripts/validate_version_manifest.py
+
+      # 服务容器里的库是空的：业务表由迁移建，不跑这一步 pytest 会红在「表不存在」。
+      # 本地由开发者手动做（README §5 的 `alembic upgrade head`），所以它在 ci.py 的
+      # 阶段表里没有对应项，已在 `scripts/check_gate_sync.py` 的 WORKFLOW_ONLY_PREFIXES 登记。
+      - name: Apply migrations (alembic upgrade head)
+        run: uv run --locked alembic upgrade head
 
       - name: Test (pytest)
         run: uv run --locked pytest --cov --cov-report=term-missing

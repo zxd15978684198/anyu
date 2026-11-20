@@ -33,6 +33,9 @@ WORKFLOW = REPO_ROOT / ".github" / "workflows" / "anyu.yml"
 # 只允许显式列在这里，避免「随便加一条 workflow 步骤」静默逃过比对。
 WORKFLOW_ONLY_PREFIXES = (
     "uv sync",  # 由 ci.py 的 sync 阶段代表，但 workflow 需要它作为独立安装步骤
+    # CI 的 PostgreSQL 是 service container 起的空库，表全靠迁移建；本地这一步是开发者
+    # 手动做的前置（README §5），没有对应的 ci.py 阶段，故只允许出现在 workflow 侧。
+    "uv run --locked alembic upgrade head",
 )
 
 
