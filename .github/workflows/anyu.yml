@@ -134,9 +134,8 @@ jobs:
       - name: Secret scan failure digest
         if: failure()
         run: |
-          .venv/bin/python scripts/secret_scan.py 2>&1 \
-            | grep -E "Location:|Secret Type:|Secret 检查" \
-            | head -30 | sed 's/^/::error::/' || true
+          .venv/bin/python -c "import sys; from importlib.metadata import version; print('python', sys.version.split()[0], '| detect-secrets', version('detect-secrets'))" 2>&1 | sed 's/^/::error::/' || true
+          .venv/bin/python scripts/secret_scan.py 2>&1 | tail -60 | sed 's/^/::error::/' || true
 
       # 覆盖上游默认：本项目是应用不是可分发包
       # （`[tool.uv] package = false` 且无 `[build-system]`），`uv build` 必然报
